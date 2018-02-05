@@ -22,43 +22,41 @@ import java.util.Collections;
 import java.util.Set;
 
 import com.google.common.base.Objects.ToStringHelper;
-import com.google.common.collect.BiMap;
 import org.dmg.pmml.DataType;
 import org.dmg.pmml.tree.Node;
-import org.jpmml.evaluator.EntityClassification;
+import org.jpmml.evaluator.Classification;
+import org.jpmml.evaluator.EntityUtil;
 import org.jpmml.evaluator.HasConfidence;
+import org.jpmml.evaluator.HasEntityId;
+import org.jpmml.evaluator.HasEntityRegistry;
 import org.jpmml.evaluator.HasProbability;
-import org.jpmml.evaluator.Numbers;
 import org.jpmml.evaluator.Report;
 import org.jpmml.evaluator.ReportUtil;
 import org.jpmml.evaluator.TypeUtil;
 import org.jpmml.evaluator.Value;
 import org.jpmml.evaluator.ValueMap;
 
-public class NodeScoreDistribution<V extends Number> extends EntityClassification<Node, V> implements HasProbability, HasConfidence {
+abstract
+public class NodeScoreDistribution<V extends Number> extends Classification<V> implements HasEntityId, HasEntityRegistry<Node>, HasProbability, HasConfidence {
+
+	private Node node = null;
 
 	private ValueMap<String, V> confidences = null;
 
 
-	NodeScoreDistribution(ValueMap<String, V> probabilities, BiMap<String, Node> entityRegistry, Node node){
-		super(Type.PROBABILITY, probabilities, entityRegistry);
+	NodeScoreDistribution(ValueMap<String, V> probabilities,  Node node){
+		super(Type.PROBABILITY, probabilities);
 
-		setEntity(node);
+		setNode(node);
 	}
 
 	@Override
 	protected void computeResult(DataType dataType){
-		Node node = getEntity();
+		Node node = getNode();
 
-		if(node.hasScore()){
-			Object result = TypeUtil.parseOrCast(dataType, node.getScore());
+		Object result = TypeUtil.parseOrCast(dataType, node.getScore());
 
-			super.setResult(result);
-
-			return;
-		}
-
-		super.computeResult(dataType);
+		setResult(result);
 	}
 
 	@Override
@@ -66,52 +64,31 @@ public class NodeScoreDistribution<V extends Number> extends EntityClassificatio
 		ValueMap<String, V> confidences = getConfidences();
 
 		ToStringHelper helper = super.toStringHelper()
+			.add("entityId", getEntityId())
 			.add(Type.CONFIDENCE.entryKey(), confidences != null ? confidences.entrySet() : Collections.emptySet());
 
 		return helper;
 	}
 
-	public boolean isEmpty(){
-		ValueMap<String, V> values = getValues();
+	@Override
+	public String getEntityId(){
+		Node node = getNode();
 
-		return values.isEmpty();
+		return EntityUtil.getId(node, this);
 	}
 
 	@Override
 	public Set<String> getCategoryValues(){
-
-		if(isEmpty()){
-			Node node = getEntity();
-
-			return Collections.singleton(node.getScore());
-		}
-
 		return keySet();
 	}
 
 	@Override
 	public Double getProbability(String category){
-
-		if(isEmpty()){
-			Node node = getEntity();
-
-			if(category != null && (category).equals(node.getScore())){
-				return Numbers.DOUBLE_ONE;
-			}
-
-			return Numbers.DOUBLE_ZERO;
-		}
-
 		return getValue(category);
 	}
 
 	@Override
 	public Report getProbabilityReport(String category){
-
-		if(isEmpty()){
-			return null;
-		}
-
 		return getValueReport(category);
 	}
 
@@ -143,6 +120,19 @@ public class NodeScoreDistribution<V extends Number> extends EntityClassificatio
 		}
 
 		confidences.put(category, confidence);
+	}
+
+	public Node getNode(){
+		return this.node;
+	}
+
+	private void setNode(Node node){
+
+		if(node == null){
+			throw new IllegalArgumentException();
+		}
+
+		this.node = node;
 	}
 
 	private ValueMap<String, V> getConfidences(){

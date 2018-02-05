@@ -37,13 +37,12 @@ import org.dmg.pmml.ScoreDistribution;
 import org.dmg.pmml.tree.Node;
 import org.dmg.pmml.tree.TreeModel;
 import org.jpmml.evaluator.CacheUtil;
-import org.jpmml.evaluator.Classification;
 import org.jpmml.evaluator.EntityUtil;
 import org.jpmml.evaluator.EvaluationContext;
 import org.jpmml.evaluator.EvaluationException;
 import org.jpmml.evaluator.HasEntityRegistry;
 import org.jpmml.evaluator.InvalidAttributeException;
-import org.jpmml.evaluator.InvalidElementException;
+import org.jpmml.evaluator.MisplacedAttributeException;
 import org.jpmml.evaluator.MissingAttributeException;
 import org.jpmml.evaluator.MissingElementException;
 import org.jpmml.evaluator.ModelEvaluationContext;
@@ -54,6 +53,7 @@ import org.jpmml.evaluator.PMMLElements;
 import org.jpmml.evaluator.PredicateUtil;
 import org.jpmml.evaluator.TargetField;
 import org.jpmml.evaluator.TargetUtil;
+import org.jpmml.evaluator.UndefinedResultException;
 import org.jpmml.evaluator.UnsupportedAttributeException;
 import org.jpmml.evaluator.UnsupportedElementException;
 import org.jpmml.evaluator.Value;
@@ -148,7 +148,7 @@ public class TreeModelEvaluator extends ModelEvaluator<TreeModel> implements Has
 		return TargetUtil.evaluateRegression(targetField, result);
 	}
 
-	private <V extends Number> Map<FieldName, ? extends Classification<V>> evaluateClassification(ValueFactory<V> valueFactory, EvaluationContext context){
+	private <V extends Number> Map<FieldName, ?> evaluateClassification(ValueFactory<V> valueFactory, EvaluationContext context){
 		TreeModel treeModel = getModel();
 
 		TargetField targetField = getTargetField();
@@ -158,6 +158,12 @@ public class TreeModelEvaluator extends ModelEvaluator<TreeModel> implements Has
 		Node node = evaluateTree(trail, context);
 		if(node == null){
 			return TargetUtil.evaluateClassificationDefault(valueFactory, targetField);
+		} // End if
+
+		if(!node.hasScoreDistributions()){
+			NodeVote result = createNodeVote(node);
+
+			return TargetUtil.evaluateVote(targetField, result);
 		}
 
 		double missingValuePenalty = 1d;
@@ -167,7 +173,7 @@ public class TreeModelEvaluator extends ModelEvaluator<TreeModel> implements Has
 			missingValuePenalty = Math.pow(treeModel.getMissingValuePenalty(), missingLevels);
 		}
 
-		NodeScoreDistribution<V> result = createNodeScoreDistribution(valueFactory, targetField, node, missingValuePenalty);
+		NodeScoreDistribution<V> result = createNodeScoreDistribution(valueFactory, node, missingValuePenalty);
 
 		return TargetUtil.evaluateClassification(targetField, result);
 	}
@@ -320,26 +326,47 @@ public class TreeModelEvaluator extends ModelEvaluator<TreeModel> implements Has
 	}
 
 	private <V extends Number> NodeScore<V> createNodeScore(ValueFactory<V> valueFactory, TargetField targetField, Node node){
-		BiMap<String, Node> entityRegistry = getEntityRegistry();
-
 		Value<V> value = valueFactory.newValue(node.getScore());
 
 		value = TargetUtil.evaluateRegressionInternal(targetField, value);
 
-		return new NodeScore<>(value, entityRegistry, node);
+		NodeScore<V> result = new NodeScore<V>(value, node){
+
+			@Override
+			public BiMap<String, Node> getEntityRegistry(){
+				return TreeModelEvaluator.this.getEntityRegistry();
+			}
+		};
+
+		return result;
 	}
 
-	private <V extends Number> NodeScoreDistribution<V> createNodeScoreDistribution(ValueFactory<V> valueFactory, TargetField targetField, Node node, double missingValuePenalty){
-		BiMap<String, Node> entityRegistry = getEntityRegistry();
+	private NodeVote createNodeVote(Node node){
+		NodeVote result = new NodeVote(node){
 
-		if(!node.hasScoreDistributions()){
-			return new NodeScoreDistribution<>(new ValueMap<String, V>(0), entityRegistry, node);
-		}
+			@Override
+			public BiMap<String, Node> getEntityRegistry(){
+				return TreeModelEvaluator.this.getEntityRegistry();
+			}
+		};
 
+		return result;
+	}
+
+	private <V extends Number> NodeScoreDistribution<V> createNodeScoreDistribution(ValueFactory<V> valueFactory, Node node, double missingValuePenalty){
 		List<ScoreDistribution> scoreDistributions = node.getScoreDistributions();
+
+		NodeScoreDistribution<V> result = new NodeScoreDistribution<V>(new ValueMap<String, V>(2 * scoreDistributions.size()), node){
+
+			@Override
+			public BiMap<String, Node> getEntityRegistry(){
+				return TreeModelEvaluator.this.getEntityRegistry();
+			}
+		};
 
 		Value<V> sum = valueFactory.newValue();
 
+		// "If the predicted probability is defined for any class label, then it must be defined for all"
 		boolean hasProbabilities = false;
 
 		for(int i = 0, max = scoreDistributions.size(); i < max; i++){
@@ -347,42 +374,38 @@ public class TreeModelEvaluator extends ModelEvaluator<TreeModel> implements Has
 
 			Double probability = scoreDistribution.getProbability();
 
-			hasProbabilities |= (probability != null);
-
-			// "If the predicted probability is defined for any class label, then it must be defined for all"
-			if(hasProbabilities && probability == null){
-				throw new MissingAttributeException(scoreDistribution, PMMLAttributes.SCOREDISTRIBUTION_PROBABILITY);
-			} // End if
-
-			if(hasProbabilities){
-				sum.add(probability);
-			} else
-
-			{
-				sum.add(scoreDistribution.getRecordCount());
+			if(i == 0){
+				hasProbabilities = (probability != null);
 			}
-		}
-
-		// "The predicted probabilities must sum to 1"
-		if(hasProbabilities && sum.doubleValue() != 1d){
-			throw new InvalidElementException(node);
-		}
-
-		NodeScoreDistribution<V> result = new NodeScoreDistribution<>(new ValueMap<String, V>(2 * scoreDistributions.size()), entityRegistry, node);
-
-		for(int i = 0, max = scoreDistributions.size(); i < max; i++){
-			ScoreDistribution scoreDistribution = scoreDistributions.get(i);
 
 			Value<V> value;
 
 			if(hasProbabilities){
-				Double probability = scoreDistribution.getProbability();
+
+				if(probability == null){
+					throw new MissingAttributeException(scoreDistribution, PMMLAttributes.SCOREDISTRIBUTION_PROBABILITY);
+				} // End if
+
+				if(probability < 0d || probability > 1d){
+					throw new InvalidAttributeException(scoreDistribution, PMMLAttributes.SCOREDISTRIBUTION_PROBABILITY, probability);
+				}
+
+				sum.add(probability);
 
 				value = valueFactory.newValue(probability);
 			} else
 
 			{
-				value = valueFactory.newValue(scoreDistribution.getRecordCount()).divide(sum);
+				if(probability != null){
+					throw new MisplacedAttributeException(scoreDistribution, PMMLAttributes.SCOREDISTRIBUTION_PROBABILITY, probability);
+				}
+
+				double recordCount = scoreDistribution.getRecordCount();
+				if(recordCount != 0d){
+					sum.add(recordCount);
+				}
+
+				value = valueFactory.newValue(recordCount);
 			}
 
 			result.put(scoreDistribution.getValue(), value);
@@ -396,6 +419,19 @@ public class TreeModelEvaluator extends ModelEvaluator<TreeModel> implements Has
 				}
 
 				result.putConfidence(scoreDistribution.getValue(), value);
+			}
+		}
+
+		// "The predicted probabilities must sum to 1"
+		if(!sum.equals(1d)){
+			ValueMap<String, V> values = result.getValues();
+
+			if(sum.equals(0d)){
+				throw new UndefinedResultException();
+			}
+
+			for(Value<V> value : values){
+				value.divide(sum);
 			}
 		}
 

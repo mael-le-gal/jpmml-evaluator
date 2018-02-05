@@ -31,26 +31,28 @@ JPMML-Evaluator is *de facto* the reference implementation of the PMML specifica
 * Calculation of auxiliary output fields according to the [Output](http://www.dmg.org/pmml/v4-3/Output.html) element:
   * Over 20 different result feature types.
 * Model verification according to the [ModelVerification](http://www.dmg.org/pmml/v4-3/ModelVerification.html) element.
+* Vendor extensions:
+  * Java-backed model, expression and predicate types - integrate any 3rd party Java library into PMML data flow.
+  * MathML prediction reports.
 
 For more information please see the [features.md](https://github.com/jpmml/jpmml-evaluator/blob/master/features.md) file.
 
 JPMML-Evaluator is interoperable with most popular statistics and data mining software:
 
 * [R](http://www.r-project.org/) and [Rattle](http://rattle.togaware.com/):
-  * [JPMML-R](https://github.com/jpmml/jpmml-r) library and [`r2pmml`](https://github.com/jpmml/r2pmml) package
-  * [`pmml`](https://cran.r-project.org/web/packages/pmml/) package
-  * [`pmmlTransformations`](https://cran.r-project.org/web/packages/pmmlTransformations/) package
+  * [JPMML-R](https://github.com/jpmml/jpmml-r) library and [`r2pmml`](https://github.com/jpmml/r2pmml) package.
+  * [`pmml`](https://cran.r-project.org/web/packages/pmml/) and [`pmmlTransformations`](https://cran.r-project.org/web/packages/pmmlTransformations/) packages.
 * [Python](http://www.python.org/) and [Scikit-Learn](http://scikit-learn.org/):
-  * [JPMML-SkLearn](https://github.com/jpmml/jpmml-sklearn) library and [`sklearn2pmml`](https://github.com/jpmml/sklearn2pmml) package
+  * [JPMML-SkLearn](https://github.com/jpmml/jpmml-sklearn) library and [`sklearn2pmml`](https://github.com/jpmml/sklearn2pmml) package.
 * [Apache Spark](http://spark.apache.org/):
-  * [JPMML-SparkML](https://github.com/jpmml/jpmml-sparkml) library
-  * [`mllib.pmml.PMMLExportable`](https://spark.apache.org/docs/latest/api/java/org/apache/spark/mllib/pmml/PMMLExportable.html) interface
+  * [JPMML-SparkML](https://github.com/jpmml/jpmml-sparkml) library.
+  * [`mllib.pmml.PMMLExportable`](https://spark.apache.org/docs/latest/api/java/org/apache/spark/mllib/pmml/PMMLExportable.html) interface.
 * [XGBoost](https://github.com/dmlc/xgboost):
-  * [JPMML-XGBoost](https://github.com/jpmml/jpmml-xgboost) library
+  * [JPMML-XGBoost](https://github.com/jpmml/jpmml-xgboost) library.
 * [LightGBM](https://github.com/Microsoft/LightGBM):
-  * [JPMML-LightGBM](https://github.com/jpmml/jpmml-lightgbm) library
+  * [JPMML-LightGBM](https://github.com/jpmml/jpmml-lightgbm) library.
 * [TensorFlow](http://tensorflow.org):
-  * [JPMML-TensorFlow](https://github.com/jpmml/jpmml-tensorflow) library
+  * [JPMML-TensorFlow](https://github.com/jpmml/jpmml-tensorflow) library.
 * [KNIME](http://www.knime.com/)
 * [RapidMiner](http://rapidminer.com/products/rapidminer-studio/)
 * [SAS](http://www.sas.com/en_us/software/analytics/enterprise-miner.html)
@@ -60,19 +62,24 @@ JPMML-Evaluator is fast and memory efficient. It can deliver one million scoring
 
 # Prerequisites #
 
-* Java 1.7 or newer.
+* Java 1.8 or newer.
 
 # Installation #
 
 JPMML-Evaluator library JAR files (together with accompanying Java source and Javadocs JAR files) are released via [Maven Central Repository](http://repo1.maven.org/maven2/org/jpmml/).
 
-The current version is **1.3.10** (2 October, 2017).
+The current version is **1.3.11** (29 January, 2018).
 
 ```xml
 <dependency>
 	<groupId>org.jpmml</groupId>
 	<artifactId>pmml-evaluator</artifactId>
-	<version>1.3.10</version>
+	<version>1.3.11</version>
+</dependency>
+<dependency>
+	<groupId>org.jpmml</groupId>
+	<artifactId>pmml-evaluator-extension</artifactId>
+	<version>1.3.11</version>
 </dependency>
 ```
 
@@ -270,24 +277,24 @@ This module can be built using [Apache Maven](http://maven.apache.org/):
 mvn clean install
 ```
 
-The resulting uber-JAR file `target/example-1.3-SNAPSHOT.jar` contains the following command-line applications:
+The resulting uber-JAR file `target/example-1.4-SNAPSHOT.jar` contains the following command-line applications:
 * `org.jpmml.evaluator.EvaluationExample` [(source)](https://github.com/jpmml/jpmml-evaluator/blob/master/pmml-evaluator-example/src/main/java/org/jpmml/evaluator/EvaluationExample.java). Evaluates a PMML model with data. The predictions are stored.
 * `org.jpmml.evaluator.TestingExample`. Evaluates a PMML model with data. The predictions are verified against expected predictions data.
 * `org.jpmml.evaluator.EnhancementExample`. Enhances a PMML model with a ModelVerification element.
 
 Evaluating model `model.pmml` with data records from `input.csv`. The predictions are stored to `output.csv`:
 ```
-java -cp target/example-1.3-SNAPSHOT.jar org.jpmml.evaluator.EvaluationExample --model model.pmml --input input.csv --output output.csv
+java -cp target/example-1.4-SNAPSHOT.jar org.jpmml.evaluator.EvaluationExample --model model.pmml --input input.csv --output output.csv
 ```
 
 Evaluating model `model.pmml` with data records from `input.csv`. The predictions are verified against data records from `expected-output.csv`:
 ```
-java -cp target/example-1.3-SNAPSHOT.jar org.jpmml.evaluator.TestingExample --model model.pmml --input input.csv --expected-output expected-output.csv
+java -cp target/example-1.4-SNAPSHOT.jar org.jpmml.evaluator.TestingExample --model model.pmml --input input.csv --expected-output expected-output.csv
 ```
 
 Getting help:
 ```
-java -cp target/example-1.3-SNAPSHOT.jar <application class name> --help
+java -cp target/example-1.4-SNAPSHOT.jar <application class name> --help
 ```
 
 # Support and Documentation #

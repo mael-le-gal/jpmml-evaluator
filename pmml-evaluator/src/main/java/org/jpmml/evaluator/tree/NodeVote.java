@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Villu Ruusmann
+ * Copyright (c) 2018 Villu Ruusmann
  *
  * This file is part of JPMML-Evaluator
  *
@@ -19,23 +19,31 @@
 package org.jpmml.evaluator.tree;
 
 import com.google.common.base.Objects.ToStringHelper;
+import org.dmg.pmml.DataType;
 import org.dmg.pmml.tree.Node;
 import org.jpmml.evaluator.EntityUtil;
 import org.jpmml.evaluator.HasEntityId;
 import org.jpmml.evaluator.HasEntityRegistry;
-import org.jpmml.evaluator.Regression;
-import org.jpmml.evaluator.Value;
+import org.jpmml.evaluator.TypeUtil;
+import org.jpmml.evaluator.Vote;
 
 abstract
-public class NodeScore<V extends Number> extends Regression<V> implements HasEntityId, HasEntityRegistry<Node> {
+public class NodeVote extends Vote implements HasEntityId, HasEntityRegistry<Node> {
 
 	private Node node = null;
 
 
-	NodeScore(Value<V> value, Node node){
-		super(value);
-
+	NodeVote(Node node){
 		setNode(node);
+	}
+
+	@Override
+	protected void computeResult(DataType dataType){
+		Node node = getNode();
+
+		Object result = TypeUtil.parseOrCast(dataType, node.getScore());
+
+		setResult(result);
 	}
 
 	@Override

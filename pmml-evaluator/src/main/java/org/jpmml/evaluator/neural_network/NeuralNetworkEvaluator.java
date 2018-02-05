@@ -281,6 +281,7 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 
 		Map<FieldName, List<NeuralOutput>> neuralOutputMap = getNeuralOutputMap();
 
+		final
 		BiMap<String, Entity> entityRegistry = getEntityRegistry();
 
 		Map<FieldName, Classification<V>> results = null;
@@ -293,7 +294,13 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 				throw new InvalidElementException(neuralNetwork);
 			}
 
-			NeuronProbabilityDistribution<V> result = new NeuronProbabilityDistribution<>(new ValueMap<String, V>(2 * neuralOutputs.size()), entityRegistry);
+			NeuronProbabilityDistribution<V> result = new NeuronProbabilityDistribution<V>(new ValueMap<String, V>(2 * neuralOutputs.size())){
+
+				@Override
+				public BiMap<String, Entity> getEntityRegistry(){
+					return entityRegistry;
+				}
+			};
 
 			for(NeuralOutput neuralOutput : neuralOutputs){
 				String id = neuralOutput.getOutputNeuron();
@@ -398,7 +405,7 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 				throw new MissingElementException(neuralInput, PMMLElements.NEURALINPUT_DERIVEDFIELD);
 			}
 
-			FieldValue value = ExpressionUtil.evaluateDerivedField(derivedField, context);
+			FieldValue value = ExpressionUtil.evaluateTypedExpressionContainer(derivedField, context);
 			if(value == null){
 				return null;
 			}
@@ -479,7 +486,7 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 				}
 
 				Double bias = neuron.getBias();
-				if(bias != null){
+				if(bias != null && bias != 0d){
 					output.add(bias);
 				}
 

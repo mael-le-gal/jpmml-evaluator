@@ -27,33 +27,27 @@ import org.jpmml.evaluator.ValueMap;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
-public class NodeClassificationMapTest {
+public class NodeScoreDistributionTest {
 
 	@Test
 	public void getProbability(){
 		Node node = new Node()
 			.setScore("ham");
 
+		final
 		BiMap<String, Node> entityRegistry = ImmutableBiMap.of("1", node);
 
-		NodeScoreDistribution<Double> classification = new NodeScoreDistribution<>(new ValueMap<String, Double>(), entityRegistry, node);
+		NodeScoreDistribution<Double> classification = new NodeScoreDistribution<Double>(new ValueMap<String, Double>(), node){
 
-		assertEquals("1", classification.getEntityId());
-
-		assertTrue(classification.isEmpty());
-
-		assertEquals(ImmutableSet.of("ham"), classification.getCategoryValues());
-
-		assertEquals((Double)1d, classification.getProbability("ham"));
-		assertEquals((Double)0d, classification.getProbability("spam"));
+			@Override
+			public BiMap<String, Node> getEntityRegistry(){
+				return entityRegistry;
+			}
+		};
 
 		classification.put("ham", new DoubleValue(0.75d));
 		classification.put("spam", new DoubleValue(0.25d));
-
-		assertFalse(classification.isEmpty());
 
 		assertEquals(ImmutableSet.of("ham", "spam"), classification.getCategoryValues());
 

@@ -33,7 +33,6 @@ import org.dmg.pmml.Aggregate;
 import org.dmg.pmml.Apply;
 import org.dmg.pmml.Constant;
 import org.dmg.pmml.DataType;
-import org.dmg.pmml.DerivedField;
 import org.dmg.pmml.Discretize;
 import org.dmg.pmml.Expression;
 import org.dmg.pmml.FieldColumnPair;
@@ -41,6 +40,7 @@ import org.dmg.pmml.FieldName;
 import org.dmg.pmml.FieldRef;
 import org.dmg.pmml.HasExpression;
 import org.dmg.pmml.HasField;
+import org.dmg.pmml.HasType;
 import org.dmg.pmml.InvalidValueTreatmentMethod;
 import org.dmg.pmml.MapValues;
 import org.dmg.pmml.NormContinuous;
@@ -48,7 +48,6 @@ import org.dmg.pmml.NormDiscrete;
 import org.dmg.pmml.OpType;
 import org.dmg.pmml.PMMLObject;
 import org.dmg.pmml.TextIndex;
-import org.dmg.pmml.TypeDefinitionField;
 
 public class ExpressionUtil {
 
@@ -76,10 +75,10 @@ public class ExpressionUtil {
 	}
 
 	static
-	public FieldValue evaluateDerivedField(DerivedField derivedField, EvaluationContext context){
-		FieldValue value = evaluateExpressionContainer(derivedField, context);
+	public <E extends PMMLObject & HasType<E> & HasExpression<E>> FieldValue evaluateTypedExpressionContainer(E hasTypedExpression, EvaluationContext context){
+		FieldValue value = evaluateExpressionContainer(hasTypedExpression, context);
 
-		return FieldValueUtil.refine(derivedField, value);
+		return FieldValueUtil.refine(hasTypedExpression.getDataType(), hasTypedExpression.getOpType(), value);
 	}
 
 	static
@@ -143,82 +142,6 @@ public class ExpressionUtil {
 		throw new UnsupportedElementException(expression);
 	}
 
-	/**
-	 * @throws TypeAnalysisException If the data type cannot be determined.
-	 */
-	static
-	public DataType getDataType(Expression expression, ModelEvaluator<?> modelEvaluator){
-
-		if(expression instanceof Constant){
-			Constant constant = (Constant)expression;
-
-			return getConstantDataType(constant);
-		} else
-
-		if(expression instanceof FieldRef){
-			FieldRef fieldRef = (FieldRef)expression;
-
-			FieldName name = ensureField(fieldRef);
-
-			TypeDefinitionField field = modelEvaluator.resolveField(name);
-			if(field == null){
-				throw new MissingFieldException(name, expression);
-			}
-
-			return field.getDataType();
-		} else
-
-		if(expression instanceof NormContinuous){
-			return DataType.DOUBLE;
-		} else
-
-		if(expression instanceof NormDiscrete){
-			return DataType.DOUBLE;
-		} else
-
-		if(expression instanceof Discretize){
-			Discretize discretize = (Discretize)expression;
-
-			DataType dataType = discretize.getDataType();
-			if(dataType == null){
-				dataType = DataType.STRING;
-			}
-
-			return dataType;
-		} else
-
-		if(expression instanceof MapValues){
-			MapValues mapValues = (MapValues)expression;
-
-			DataType dataType = mapValues.getDataType();
-			if(dataType == null){
-				dataType = DataType.STRING;
-			}
-
-			return dataType;
-		} else
-
-		if(expression instanceof TextIndex){
-			TextIndex textIndex = (TextIndex)expression;
-
-			return getTextIndexDataType(textIndex);
-		} else
-
-		if(expression instanceof Apply){
-			throw new TypeAnalysisException(expression);
-		} else
-
-		if(expression instanceof Aggregate){
-			throw new TypeAnalysisException(expression);
-		} // End if
-
-		if(expression instanceof JavaExpression){
-			throw new TypeAnalysisException(expression);
-		}
-
-		throw new UnsupportedElementException(expression);
-	}
-
 	static
 	public DataType getConstantDataType(Constant constant){
 		DataType dataType = constant.getDataType();
@@ -228,21 +151,6 @@ public class ExpressionUtil {
 		}
 
 		return dataType;
-	}
-
-	static
-	public DataType getTextIndexDataType(TextIndex textIndex){
-		TextIndex.LocalTermWeights localTermWeights = textIndex.getLocalTermWeights();
-
-		switch(localTermWeights){
-			case BINARY:
-			case TERM_FREQUENCY:
-				return DataType.INTEGER;
-			case LOGARITHMIC:
-				return DataType.DOUBLE;
-			default:
-				throw new UnsupportedAttributeException(textIndex, localTermWeights);
-		}
 	}
 
 	static

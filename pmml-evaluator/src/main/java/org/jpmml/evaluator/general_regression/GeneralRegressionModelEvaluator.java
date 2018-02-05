@@ -41,7 +41,6 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import org.dmg.pmml.DataField;
 import org.dmg.pmml.DataType;
 import org.dmg.pmml.FieldName;
 import org.dmg.pmml.MathContext;
@@ -666,7 +665,7 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 		}
 
 		Double offset = getOffset(generalRegressionModel, context);
-		if(offset != null){
+		if(offset != null && offset != 0d){
 			value.add(offset);
 		}
 
@@ -704,7 +703,7 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 		}
 
 		Double offset = getOffset(generalRegressionModel, context);
-		if(offset != null){
+		if(offset != null && offset != 0d){
 			value.add(offset.doubleValue());
 		}
 
@@ -781,22 +780,18 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 
 		TargetField targetField = getTargetField();
 
-		DataField dataField = targetField.getDataField();
-
-		OpType opType = dataField.getOpType();
+		OpType opType = targetField.getOpType();
 		switch(opType){
-			case CONTINUOUS:
-				throw new InvalidElementException(generalRegressionModel);
 			case CATEGORICAL:
 			case ORDINAL:
 				break;
 			default:
-				throw new UnsupportedAttributeException(dataField, opType);
+				throw new InvalidElementException(generalRegressionModel);
 		}
 
-		List<String> targetCategories = FieldValueUtil.getTargetCategories(dataField);
+		List<String> targetCategories = FieldValueUtil.getTargetCategories(targetField);
 		if(targetCategories.size() > 0 && targetCategories.size() < 2){
-			throw new InvalidElementException(dataField);
+			throw new InvalidElementException(generalRegressionModel);
 		}
 
 		String targetReferenceCategory = generalRegressionModel.getTargetReferenceCategory();
@@ -1084,7 +1079,7 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 				factorHandler.updateProduct(result, value);
 			}
 
-			if(result.doubleValue() == 0d){
+			if(result.equals(0d)){
 				return result;
 			}
 

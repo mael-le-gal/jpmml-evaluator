@@ -165,14 +165,16 @@ public class OutputUtil {
 					break;
 				case PREDICTED_DISPLAY_VALUE:
 					{
-						DataField dataField = modelEvaluator.getDataField(targetFieldName);
-						if(dataField == null){
+						if(segmentId != null){
+							throw new UnsupportedElementException(outputField);
+						}
+
+						TargetField targetField = modelEvaluator.findTargetField(targetFieldName);
+						if(targetField == null){
 							throw new MissingFieldException(targetFieldName, outputField);
 						}
 
-						Target target = modelEvaluator.getTarget(targetFieldName);
-
-						value = getPredictedDisplayValue(targetValue, dataField, target);
+						value = getPredictedDisplayValue(targetValue, targetField);
 					}
 					break;
 				case TRANSFORMED_VALUE:
@@ -204,23 +206,31 @@ public class OutputUtil {
 					break;
 				case RESIDUAL:
 					{
+						if(segmentId != null){
+							throw new UnsupportedElementException(outputField);
+						}
+
 						FieldValue expectedTargetValue = context.evaluate(targetFieldName);
 						if(expectedTargetValue == null){
 							throw new MissingValueException(targetFieldName, outputField);
 						}
 
-						DataField dataField = modelEvaluator.getDataField(targetFieldName);
+						TargetField targetField = modelEvaluator.findTargetField(targetFieldName);
+						if(targetField == null){
+							throw new MissingFieldException(targetFieldName, outputField);
+						}
 
-						OpType opType = dataField.getOpType();
+						OpType opType = targetField.getOpType();
 						switch(opType){
 							case CONTINUOUS:
 								value = getContinuousResidual(targetValue, expectedTargetValue);
 								break;
 							case CATEGORICAL:
-								value = getCategoricalResidual(targetValue, expectedTargetValue);
+							case ORDINAL:
+								value = getDiscreteResidual(targetValue, expectedTargetValue);
 								break;
 							default:
-								throw new UnsupportedElementException(outputField);
+								throw new InvalidElementException(outputField);
 						}
 					}
 					break;
@@ -345,143 +355,13 @@ public class OutputUtil {
 		return result;
 	}
 
-	/**
-	 * @throws TypeAnalysisException If the data type cannot be determined.
-	 */
-	static
-	public DataType getDataType(OutputField outputField, ModelEvaluator<?> modelEvaluator){
-		FieldName name = outputField.getName();
-
-		DataType dataType = outputField.getDataType();
-		if(dataType != null){
-			return dataType;
-		}
-
-		String segmentId = outputField.getSegmentId();
-		if(segmentId != null){
-			throw new TypeAnalysisException(outputField);
-		}
-
-		ResultFeature resultFeature = outputField.getResultFeature();
-		switch(resultFeature){
-			case PREDICTED_VALUE:
-			case TRANSFORMED_VALUE:
-			case DECISION:
-				{
-					OutputField evaluatorOutputField = modelEvaluator.getOutputField(name);
-
-					if(!(outputField).equals(evaluatorOutputField)){
-						throw new TypeAnalysisException(outputField);
-					}
-				}
-				break;
-			default:
-				break;
-		} // End switch
-
-		switch(resultFeature){
-			case PREDICTED_VALUE:
-				{
-					FieldName targetFieldName = outputField.getTargetField();
-					if(targetFieldName == null){
-						targetFieldName = modelEvaluator.getTargetFieldName();
-					}
-
-					DataField dataField = modelEvaluator.getDataField(targetFieldName);
-					if(dataField == null){
-						throw new MissingFieldException(targetFieldName, outputField);
-					}
-
-					return dataField.getDataType();
-				}
-			case PREDICTED_DISPLAY_VALUE:
-				{
-					return DataType.STRING; // XXX
-				}
-			case TRANSFORMED_VALUE:
-			case DECISION:
-				{
-					Expression expression = ExpressionUtil.ensureExpression(outputField);
-
-					return ExpressionUtil.getDataType(expression, modelEvaluator);
-				}
-			case PROBABILITY:
-			case RESIDUAL:
-			case STANDARD_ERROR:
-				{
-					return DataType.DOUBLE;
-				}
-			case ENTITY_ID:
-			case CLUSTER_ID:
-				{
-					return DataType.STRING;
-				}
-			case AFFINITY:
-			case ENTITY_AFFINITY:
-			case CLUSTER_AFFINITY:
-				{
-					return DataType.DOUBLE;
-				}
-			case REASON_CODE:
-				{
-					return DataType.STRING;
-				}
-			case RULE_VALUE:
-				{
-					return getRuleDataType(outputField);
-				}
-			case ANTECEDENT:
-				{
-					return getRuleDataType(outputField, OutputField.RuleFeature.ANTECEDENT);
-				}
-			case CONSEQUENT:
-				{
-					return getRuleDataType(outputField, OutputField.RuleFeature.CONSEQUENT);
-				}
-			case RULE:
-				{
-					return getRuleDataType(outputField, OutputField.RuleFeature.RULE);
-				}
-			case RULE_ID:
-				{
-					return getRuleDataType(outputField, OutputField.RuleFeature.RULE_ID);
-				}
-			case SUPPORT:
-				{
-					return getRuleDataType(outputField, OutputField.RuleFeature.SUPPORT);
-				}
-			case CONFIDENCE:
-				{
-					return getRuleDataType(outputField, OutputField.RuleFeature.CONFIDENCE);
-				}
-			case LIFT:
-				{
-					return getRuleDataType(outputField, OutputField.RuleFeature.LIFT);
-				}
-			case LEVERAGE:
-				{
-					return getRuleDataType(outputField, OutputField.RuleFeature.LEVERAGE);
-				}
-			case REPORT:
-				{
-					return DataType.STRING;
-				}
-			case WARNING:
-				{
-					throw new TypeAnalysisException(outputField);
-				}
-			default:
-				throw new UnsupportedAttributeException(outputField, resultFeature);
-		}
-	}
-
 	static
 	private Object getPredictedValue(Object object){
 		return EvaluatorUtil.decode(object);
 	}
 
 	static
-	private Object getPredictedDisplayValue(Object object, DataField dataField, Target target){
+	private Object getPredictedDisplayValue(Object object, TargetField targetField){
 
 		if(object instanceof HasDisplayValue){
 			HasDisplayValue hasDisplayValue = TypeUtil.cast(HasDisplayValue.class, object);
@@ -491,6 +371,7 @@ public class OutputUtil {
 
 		object = getPredictedValue(object);
 
+		Target target = targetField.getTarget();
 		if(target != null){
 			TargetValue targetValue = TargetUtil.getTargetValue(target, object);
 
@@ -503,14 +384,14 @@ public class OutputUtil {
 			}
 		}
 
-		OpType opType = dataField.getOpType();
+		OpType opType = targetField.getOpType();
 		switch(opType){
 			case CONTINUOUS:
 				break;
 			case CATEGORICAL:
 			case ORDINAL:
 				{
-					Value value = FieldValueUtil.getValidValue(dataField, object);
+					Value value = FieldValueUtil.getValidValue(targetField, object);
 
 					if(value != null){
 						String displayValue = value.getDisplayValue();
@@ -522,6 +403,8 @@ public class OutputUtil {
 				}
 				break;
 			default:
+				DataField dataField = targetField.getDataField(); // XXX
+
 				throw new UnsupportedAttributeException(dataField, opType);
 		}
 
@@ -559,7 +442,7 @@ public class OutputUtil {
 	}
 
 	static
-	public Double getCategoricalResidual(Object object, FieldValue expectedObject){
+	public Double getDiscreteResidual(Object object, FieldValue expectedObject){
 		HasProbability hasProbability = TypeUtil.cast(HasProbability.class, object);
 
 		String value = (String)TypeUtil.cast(DataType.STRING, getPredictedValue(object));
@@ -897,36 +780,6 @@ public class OutputUtil {
 				return associationRule.getLeverage();
 			case AFFINITY:
 				return associationRule.getAffinity();
-			default:
-				throw new UnsupportedAttributeException(outputField, ruleFeature);
-		}
-	}
-
-	static
-	private DataType getRuleDataType(OutputField outputField){
-		return getRuleDataType(outputField, outputField.getRuleFeature());
-	}
-
-	static
-	private DataType getRuleDataType(OutputField outputField, OutputField.RuleFeature ruleFeature){
-		String isMultiValued = outputField.getIsMultiValued();
-		if(!("0").equals(isMultiValued)){
-			throw new TypeAnalysisException(outputField);
-		}
-
-		switch(ruleFeature){
-			case ANTECEDENT:
-			case CONSEQUENT:
-				throw new TypeAnalysisException(outputField);
-			case RULE:
-			case RULE_ID:
-				return DataType.STRING;
-			case SUPPORT:
-			case CONFIDENCE:
-			case LIFT:
-			case LEVERAGE:
-			case AFFINITY:
-				return DataType.DOUBLE;
 			default:
 				throw new UnsupportedAttributeException(outputField, ruleFeature);
 		}

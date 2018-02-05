@@ -86,6 +86,15 @@ public class TargetUtil {
 	}
 
 	static
+	public Map<FieldName, ? extends Vote> evaluateVote(TargetField targetField, Vote vote){
+		DataField dataField = targetField.getDataField();
+
+		vote.computeResult(dataField.getDataType());
+
+		return Collections.singletonMap(targetField.getName(), vote);
+	}
+
+	static
 	public <V extends Number> Map<FieldName, ? extends Classification<V>> evaluateClassificationDefault(ValueFactory<V> valueFactory, TargetField targetField){
 		Target target = targetField.getTarget();
 
@@ -223,8 +232,15 @@ public class TargetUtil {
 			sum.add(value);
 		}
 
-		if(sum.doubleValue() != 1d){
-			throw new InvalidElementException(target);
+		if(!sum.equals(1d)){
+
+			if(sum.equals(0d)){
+				throw new UndefinedResultException();
+			}
+
+			for(Value<V> value : values){
+				value.divide(sum);
+			}
 		}
 
 		return new ProbabilityDistribution<>(values);

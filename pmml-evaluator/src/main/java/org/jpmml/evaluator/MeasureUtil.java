@@ -27,10 +27,12 @@ import org.dmg.pmml.CityBlock;
 import org.dmg.pmml.CompareFunction;
 import org.dmg.pmml.ComparisonField;
 import org.dmg.pmml.ComparisonMeasure;
+import org.dmg.pmml.Distance;
 import org.dmg.pmml.Euclidean;
 import org.dmg.pmml.Jaccard;
 import org.dmg.pmml.Measure;
 import org.dmg.pmml.Minkowski;
+import org.dmg.pmml.Similarity;
 import org.dmg.pmml.SimpleMatching;
 import org.dmg.pmml.SquaredEuclidean;
 import org.dmg.pmml.Tanimoto;
@@ -51,13 +53,8 @@ public class MeasureUtil {
 	}
 
 	static
-	public boolean isSimilarity(Measure measure){
-		return (measure instanceof SimpleMatching || measure instanceof Jaccard || measure instanceof Tanimoto || measure instanceof BinarySimilarity);
-	}
-
-	static
 	public <V extends Number> Value<V> evaluateSimilarity(ValueFactory<V> valueFactory, ComparisonMeasure comparisonMeasure, List<? extends ComparisonField> comparisonFields, BitSet flags, BitSet referenceFlags){
-		Measure measure = comparisonMeasure.getMeasure();
+		Similarity measure = TypeUtil.cast(Similarity.class, comparisonMeasure.getMeasure());
 
 		int a11 = 0;
 		int a10 = 0;
@@ -117,7 +114,7 @@ public class MeasureUtil {
 			throw new UnsupportedElementException(measure);
 		} // End if
 
-		if(denominator.doubleValue() == 0d){
+		if(denominator.equals(0d)){
 			throw new UndefinedResultException();
 		}
 
@@ -148,13 +145,8 @@ public class MeasureUtil {
 	}
 
 	static
-	public boolean isDistance(Measure measure){
-		return (measure instanceof Euclidean || measure instanceof SquaredEuclidean || measure instanceof Chebychev || measure instanceof CityBlock || measure instanceof Minkowski);
-	}
-
-	static
 	public <V extends Number> Value<V> evaluateDistance(ValueFactory<V> valueFactory, ComparisonMeasure comparisonMeasure, List<? extends ComparisonField> comparisonFields, List<FieldValue> values, List<FieldValue> referenceValues, Value<V> adjustment){
-		Measure measure = comparisonMeasure.getMeasure();
+		Distance measure = TypeUtil.cast(Distance.class, comparisonMeasure.getMeasure());
 
 		double innerPower;
 		double outerPower;
@@ -207,7 +199,7 @@ public class MeasureUtil {
 		if(measure instanceof Euclidean || measure instanceof SquaredEuclidean || measure instanceof CityBlock || measure instanceof Minkowski){
 			Value<V> result = distances.sum();
 
-			if(adjustment.doubleValue() != 1d){
+			if(!adjustment.equals(1d)){
 				result.multiply(adjustment);
 			} // End if
 
@@ -221,7 +213,7 @@ public class MeasureUtil {
 		if(measure instanceof Chebychev){
 			Value<V> result = distances.max();
 
-			if(adjustment.doubleValue() != 1d){
+			if(!adjustment.equals(1d)){
 				result.multiply(adjustment);
 			}
 
@@ -320,13 +312,19 @@ public class MeasureUtil {
 
 		for(int i = 0; i < values.size(); i++){
 			FieldValue value = values.get(i);
-			Number adjustmentValue = (adjustmentValues != null ? adjustmentValues.get(i) : Numbers.DOUBLE_ONE);
+			double adjustmentValue = (adjustmentValues != null ? (adjustmentValues.get(i)).doubleValue() : 1d);
 
-			sum.add(adjustmentValue.doubleValue());
+			if(adjustmentValue != 0d){
+				sum.add(adjustmentValue);
 
-			if(value != null){
-				nonmissingSum.add(adjustmentValue.doubleValue());
+				if(value != null){
+					nonmissingSum.add(adjustmentValue);
+				}
 			}
+		}
+
+		if(nonmissingSum.equals(0d)){
+			throw new UndefinedResultException();
 		}
 
 		return sum.divide(nonmissingSum);
