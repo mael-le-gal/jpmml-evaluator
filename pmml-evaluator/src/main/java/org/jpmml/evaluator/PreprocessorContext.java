@@ -37,7 +37,7 @@ public class PreprocessorContext extends EvaluationContext {
 
         DerivedField derivedField = preprocessor.getDerivedField(name);
         if (derivedField != null) {
-            FieldValue value = ExpressionUtil.evaluateDerivedField(derivedField, this);
+            FieldValue value = ExpressionUtil.evaluateTypedExpressionContainer(derivedField, this);
             return declare(name, value);
         }
 

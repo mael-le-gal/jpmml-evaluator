@@ -154,11 +154,11 @@ public class Preprocessor {
         return new LinkedList<>(this.dataFields.values());
     }
 
-//    /**
-//     * <p>
-//     * Gets the preprocessed fields.
-//     * </p>
-//     */
+    /**
+     * <p>
+     * Gets the preprocessed fields.
+     * </p>
+     */
 //    abstract List<Field> getResultFields();
 
 //    /**
@@ -201,6 +201,12 @@ public class Preprocessor {
     }
 
     Map<FieldName,?> evaluatePreprocessor(ValueFactory<?> valueFactory, PreprocessorContext context){
+        Map<FieldName,?> args = context.getArguments();
+        Map<FieldName,?> results = this.derivedFields;
+        for(FieldName fName:this.derivedFields.keySet()){
+            FieldValue value = context.evaluate(fName);
+            System.out.println(value.asString());
+        }
         return null;
     }
 
