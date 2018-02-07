@@ -20,8 +20,6 @@ package org.jpmml.evaluator;
 
 import java.io.Serializable;
 
-import com.google.common.base.Objects;
-import com.google.common.base.Objects.ToStringHelper;
 import org.dmg.pmml.DataType;
 import org.dmg.pmml.FieldName;
 import org.dmg.pmml.OpType;
@@ -51,7 +49,7 @@ public class ModelField implements Serializable {
 	}
 
 	protected ToStringHelper toStringHelper(){
-		ToStringHelper helper = Objects.toStringHelper(this)
+		ToStringHelper helper = new ToStringHelper(this)
 			.add("name", getName())
 			.add("dataType", getDataType())
 			.add("opType", getOpType());

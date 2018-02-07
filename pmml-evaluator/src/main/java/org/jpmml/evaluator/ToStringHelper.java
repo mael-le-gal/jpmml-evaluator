@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Villu Ruusmann
+ * Copyright (c) 2018 Villu Ruusmann
  *
  * This file is part of JPMML-Evaluator
  *
@@ -18,27 +18,37 @@
  */
 package org.jpmml.evaluator;
 
-abstract
-class SimplePeriod<P extends SimplePeriod<P>> extends Number implements Comparable<P> {
+import java.util.StringJoiner;
 
-	@Override
-	public int intValue(){
-		long value = longValue();
+public class ToStringHelper {
 
-		if(value < Integer.MIN_VALUE || value > Integer.MAX_VALUE){
-			throw new UndefinedResultException();
-		}
+	private StringJoiner joiner = null;
 
-		return (int)value;
+
+	public ToStringHelper(Object object){
+		setJoiner(new StringJoiner(", ", (object.getClass()).getSimpleName() + "{", "}"));
+	}
+
+	public ToStringHelper add(String key, Object value){
+		StringJoiner joiner = getJoiner();
+
+		joiner.add(key + "=" + value);
+
+		return this;
 	}
 
 	@Override
-	public float floatValue(){
-		return longValue();
+	public String toString(){
+		StringJoiner joiner = getJoiner();
+
+		return joiner.toString();
 	}
 
-	@Override
-	public double doubleValue(){
-		return longValue();
+	public StringJoiner getJoiner(){
+		return this.joiner;
+	}
+
+	private void setJoiner(StringJoiner joiner){
+		this.joiner = joiner;
 	}
 }
