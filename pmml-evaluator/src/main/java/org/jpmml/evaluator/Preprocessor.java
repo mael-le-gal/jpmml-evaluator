@@ -20,7 +20,7 @@ public class Preprocessor {
 
         DataDictionary dataDictionary = pmml.getDataDictionary();
         if (dataDictionary == null) {
-            throw new MissingElementException(pmml, PMMLElements.PMML_DATADICTIONARY);
+            throw new InvalidFeatureException(pmml);
         } // End if
 
         if (dataDictionary.hasDataFields()) {

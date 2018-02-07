@@ -20,7 +20,7 @@ public class PreprocessorContext extends EvaluationContext {
 
     @Override
     protected FieldValue createFieldValue(FieldName name, Object value) {
-        throw new NotImplementedException();
+        throw new UnsupportedOperationException("Not implemented createFieldValue");
     }
 
     public Map<FieldName, ?> getArguments() {
@@ -52,13 +52,6 @@ public class PreprocessorContext extends EvaluationContext {
         }
 
         throw new MissingFieldException(name);
-    }
-
-    @Override
-    public void reset(boolean purge) {
-        super.reset(purge);
-
-        this.arguments = Collections.emptyMap();
     }
 
     private Preprocessor getPreprocessor() {
