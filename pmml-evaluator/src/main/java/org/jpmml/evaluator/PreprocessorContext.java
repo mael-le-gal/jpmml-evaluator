@@ -10,7 +10,7 @@ public class PreprocessorContext extends EvaluationContext {
 
     private Preprocessor preprocessor = null;
 
-    public PreprocessorContext(Preprocessor preprocessor) {
+    PreprocessorContext(Preprocessor preprocessor) {
         setPreprocessor(preprocessor);
     }
 
@@ -34,10 +34,20 @@ public class PreprocessorContext extends EvaluationContext {
     @Override
     protected FieldValue resolve(FieldName name) {
         Preprocessor preprocessor = getPreprocessor();
+        DataField dataField = preprocessor.getDataField(name);
+        // Fields that either need not or must not be referenced in the MiningSchema element
+        if (dataField == null) {
+            DerivedField derivedField = preprocessor.getDerivedField(name);
+            if (derivedField != null) {
+                FieldValue value = ExpressionUtil.evaluateTypedExpressionContainer(derivedField, this);
+                return declare(name, value);
+            }
+        } else
 
-        DerivedField derivedField = preprocessor.getDerivedField(name);
-        if (derivedField != null) {
-            FieldValue value = ExpressionUtil.evaluateTypedExpressionContainer(derivedField, this);
+        // Fields that must be referenced in the DataDictionary element
+        {
+            Map<FieldName, ?> arguments = getArguments();
+            Object value = arguments.get(name);
             return declare(name, value);
         }
 
@@ -51,7 +61,7 @@ public class PreprocessorContext extends EvaluationContext {
         this.arguments = Collections.emptyMap();
     }
 
-    public Preprocessor getPreprocessor() {
+    private Preprocessor getPreprocessor() {
         return preprocessor;
     }
 }
