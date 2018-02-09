@@ -4,7 +4,7 @@ import org.dmg.pmml.*;
 import org.jpmml.evaluator.Example;
 import org.jpmml.evaluator.FieldValue;
 import org.jpmml.evaluator.FieldValueUtil;
-import org.jpmml.evaluator.Preprocessor;
+import org.jpmml.evaluator.Transformer;
 
 import java.io.File;
 import java.util.LinkedHashMap;
@@ -35,33 +35,36 @@ public class MyTest {
 //                System.out.println(fName.getValue()+": "+tf);
 //            }
 
-            PMML pmml = Example.readPMML(new File("/home/crannou/pmml-samples/map.pmml"));
-            Preprocessor prep = new Preprocessor(pmml);
+//            PMML pmml = Example.readPMML(new File("/home/crannou/pmml-samples/map.pmml"));
+//            Transformer prep = new Transformer(pmml);
+//            Map<FieldName, FieldValue> arguments = new LinkedHashMap<>();
+//            arguments.put(
+//                    FieldName.create("WHOIS_DOMAINE"),
+//                    FieldValueUtil.create(DataType.STRING, OpType.CATEGORICAL, "US")
+//            );
+//            arguments.put(
+//                    FieldName.create("WINDOW_BILLING"),
+//                    FieldValueUtil.create(DataType.DOUBLE, OpType.CONTINUOUS, 3)
+//            );
+//            arguments.put(
+//                    FieldName.create("TOTAL_REVENUE"),
+//                    FieldValueUtil.create(DataType.DOUBLE, OpType.CONTINUOUS, 37)
+//            );
+            PMML pmml = Example.readPMML(new File("/home/crannou/pmml-samples/less-basic.pmml"));
+            Transformer prep = new Transformer(pmml);
             Map<FieldName, FieldValue> arguments = new LinkedHashMap<>();
-//            List<DataField> fields = prep.getArgumentFields();
-//            for (DataField field : fields) {
-//                FieldName fName = field.getName();
-//                Object rawValue;
-//                if (fName.getValue().equals("y")) {
-//                    rawValue = 42;
-//                } else {
-//                    rawValue = 2;
-//                }
-//                FieldValue fValue = FieldValueUtil.create(field.getDataType(), field.getOpType(), rawValue);
-//                arguments.put(fName, fValue);
-//            }
             arguments.put(
-                    FieldName.create("WHOIS_DOMAINE"),
-                    FieldValueUtil.create(DataType.STRING, OpType.CATEGORICAL, "US")
+                    FieldName.create("X"),
+                    FieldValueUtil.create(DataType.DOUBLE, OpType.CONTINUOUS, "10.0")
             );
-            arguments.put(
-                    FieldName.create("WINDOW_BILLING"),
-                    FieldValueUtil.create(DataType.DOUBLE, OpType.CONTINUOUS, 3)
-            );
-            arguments.put(
-                    FieldName.create("TOTAL_REVENUE"),
-                    FieldValueUtil.create(DataType.DOUBLE, OpType.CONTINUOUS, 37)
-            );
+//            arguments.put(
+//                    FieldName.create("y"),
+//                    FieldValueUtil.create(DataType.DOUBLE, OpType.CONTINUOUS, "42.0")
+//            );
+            for(FieldValue fValue : arguments.values()){
+                System.out.println(fValue instanceof FieldValue);
+                System.out.println(fValue);
+            }
             Map<FieldName, ?> results = prep.evaluate(arguments);
             for (FieldName result : results.keySet()) {
                 System.out.println(result.getValue());

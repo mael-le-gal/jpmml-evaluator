@@ -5,17 +5,17 @@ import org.dmg.pmml.*;
 import java.util.Collections;
 import java.util.Map;
 
-public class PreprocessorContext extends EvaluationContext {
+public class TransformerContext extends EvaluationContext {
     private Map<FieldName, ?> arguments = Collections.emptyMap();
 
-    private Preprocessor preprocessor = null;
+    private Transformer transformer = null;
 
-    PreprocessorContext(Preprocessor preprocessor) {
-        setPreprocessor(preprocessor);
+    TransformerContext(Transformer transformer) {
+        setTransformer(transformer);
     }
 
-    private void setPreprocessor(Preprocessor preprocessor) {
-        this.preprocessor = preprocessor;
+    private void setTransformer(Transformer transformer) {
+        this.transformer = transformer;
     }
 
     @Override
@@ -33,11 +33,11 @@ public class PreprocessorContext extends EvaluationContext {
 
     @Override
     protected FieldValue resolve(FieldName name) {
-        Preprocessor preprocessor = getPreprocessor();
-        DataField dataField = preprocessor.getDataField(name);
+        Transformer transformer = getTransformer();
+        DataField dataField = transformer.getDataField(name);
         // Fields that either need not or must not be referenced in the MiningSchema element
         if (dataField == null) {
-            DerivedField derivedField = preprocessor.getDerivedField(name);
+            DerivedField derivedField = transformer.getDerivedField(name);
             if (derivedField != null) {
                 FieldValue value = ExpressionUtil.evaluate(derivedField, this);
                 return declare(name, value);
@@ -48,13 +48,16 @@ public class PreprocessorContext extends EvaluationContext {
         {
             Map<FieldName, ?> arguments = getArguments();
             Object value = arguments.get(name);
+            if (value == null) {
+                throw new MissingValueException(name);
+            }
             return declare(name, value);
         }
 
         throw new MissingFieldException(name);
     }
 
-    private Preprocessor getPreprocessor() {
-        return preprocessor;
+    private Transformer getTransformer() {
+        return transformer;
     }
 }

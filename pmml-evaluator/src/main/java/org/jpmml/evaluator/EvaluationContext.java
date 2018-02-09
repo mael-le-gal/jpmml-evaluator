@@ -61,6 +61,7 @@ public class EvaluationContext {
 			}
 		}
 
+		System.out.println(name);
 		return resolve(name);
 	}
 
@@ -75,7 +76,6 @@ public class EvaluationContext {
 	}
 
 	public FieldValue declare(FieldName name, Object value){
-
 		if(value instanceof FieldValue){
 			return declare(name, (FieldValue)value);
 		}
