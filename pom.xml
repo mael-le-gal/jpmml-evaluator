@@ -18,12 +18,12 @@
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
-	<repositories>
+	<distributionManagement>
 		<repository>
 			<id>nexus-releases</id>
 			<url>https://nexus.ovh.net/nexus/content/repositories/2i.bigdata.mls-releases</url>
 		</repository>
-	</repositories>
+	</distributionManagement>
 
 	<developers>
 		<developer>
