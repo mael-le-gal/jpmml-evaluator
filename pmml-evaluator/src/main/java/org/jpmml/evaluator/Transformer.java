@@ -53,7 +53,7 @@ public class Transformer {
      * @throws UnsupportedFeatureException
      */
     //TODO
-    void verify(){
+    public void verify(){
 
     }
 
