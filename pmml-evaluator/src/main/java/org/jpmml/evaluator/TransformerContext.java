@@ -59,7 +59,9 @@ public class TransformerContext extends EvaluationContext {
      * @return The field value (would be 'null' also)
      */
     private FieldValue declareMissing(FieldName name) {
-        return declare(name,null);
+        // Casting should stay in place in order to avoid calling 'declare(FieldName,Object)'
+        // which would result in exception
+        return declare(name,(FieldValue)null);
     }
 
     private Transformer getTransformer() {
