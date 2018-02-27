@@ -8,15 +8,16 @@ import org.dmg.pmml.*;
 
 public class Transformer {
 
-    private PMML pmml = null;
+    private final PMML pmml;
 
-    private Map<FieldName, DataField> dataFields = Collections.emptyMap();
+    private final Map<FieldName, DataField> dataFields;
 
-    private Map<FieldName, DerivedField> derivedFields = Collections.emptyMap();
+    private final Map<FieldName, DerivedField> derivedFields;
 
 
     public Transformer(PMML pmml) {
-        setPMML(Objects.requireNonNull(pmml));
+        Objects.requireNonNull(pmml);
+        this.pmml = pmml;
 
         DataDictionary dataDictionary = pmml.getDataDictionary();
         if (dataDictionary == null) {
@@ -25,12 +26,16 @@ public class Transformer {
 
         if (dataDictionary.hasDataFields()) {
             this.dataFields = CacheUtil.getValue(dataDictionary, Transformer.dataFieldCache);
+        } else {
+            this.dataFields = Collections.emptyMap();
         }
 
         TransformationDictionary transformationDictionary = pmml.getTransformationDictionary();
         if (transformationDictionary != null && transformationDictionary.hasDerivedFields()) {
             this.derivedFields = CacheUtil.getValue(transformationDictionary, Transformer.derivedFieldCache);
-        } // End if
+        } else {
+            this.derivedFields = Collections.emptyMap();
+        }
     }
 
     /**
@@ -63,10 +68,6 @@ public class Transformer {
 
     public DerivedField getDerivedField(FieldName name) {
         return this.derivedFields.get(name);
-    }
-
-    private void setPMML(PMML pmml) {
-        this.pmml = pmml;
     }
 
     private static final LoadingCache<DataDictionary, Map<FieldName, DataField>> dataFieldCache = CacheUtil.buildLoadingCache(new CacheLoader<DataDictionary, Map<FieldName, DataField>>() {

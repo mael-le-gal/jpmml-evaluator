@@ -61,7 +61,6 @@ public class EvaluationContext {
 			}
 		}
 
-		System.out.println(name);
 		return resolve(name);
 	}
 
