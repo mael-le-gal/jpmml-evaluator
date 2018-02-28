@@ -6,7 +6,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.dmg.pmml.*;
 
-public class Preprocessor {
+public class Transformer {
 
     private PMML pmml = null;
 
@@ -15,7 +15,7 @@ public class Preprocessor {
     private Map<FieldName, DerivedField> derivedFields = Collections.emptyMap();
 
 
-    public Preprocessor(PMML pmml) {
+    public Transformer(PMML pmml) {
         setPMML(Objects.requireNonNull(pmml));
 
         DataDictionary dataDictionary = pmml.getDataDictionary();
@@ -24,13 +24,37 @@ public class Preprocessor {
         } // End if
 
         if (dataDictionary.hasDataFields()) {
-            this.dataFields = CacheUtil.getValue(dataDictionary, Preprocessor.dataFieldCache);
+            this.dataFields = CacheUtil.getValue(dataDictionary, Transformer.dataFieldCache);
         }
 
         TransformationDictionary transformationDictionary = pmml.getTransformationDictionary();
         if (transformationDictionary != null && transformationDictionary.hasDerivedFields()) {
-            this.derivedFields = CacheUtil.getValue(transformationDictionary, Preprocessor.derivedFieldCache);
+            this.derivedFields = CacheUtil.getValue(transformationDictionary, Transformer.derivedFieldCache);
         } // End if
+    }
+
+    /**
+     * <p>
+     * Gets a short description of the {@link Transformer}.
+     * </p>
+     */
+    //TODO
+    public String getSummary(){
+        return null;
+    }
+
+    /**
+     * <p>
+     * Verifies the {@link Transformer}.
+     * </p>
+     *
+     * @throws EvaluationException If the verification fails.
+     * @throws InvalidFeatureException
+     * @throws UnsupportedFeatureException
+     */
+    //TODO
+    public void verify(){
+
     }
 
     public DataField getDataField(FieldName name) {
@@ -63,11 +87,11 @@ public class Preprocessor {
 
     /**
      * <p>
-     * Gets the preprocessing input fields.
+     * Gets the transformed output fields.
      * </p>
      */
-    private List<FieldName> getTransformedFields() {
-        return new LinkedList<>(this.derivedFields.keySet());
+    public List<DerivedField> getTransformFields() {
+        return new LinkedList<>(this.derivedFields.values());
     }
 
     public List<DataField> getArgumentFields() {
@@ -75,23 +99,23 @@ public class Preprocessor {
     }
 
     public Map<FieldName, ?> evaluate(Map<FieldName, ?> arguments) {
-        PreprocessorContext context = new PreprocessorContext(this);
+        TransformerContext context = new TransformerContext(this);
         context.setArguments(arguments);
 
         return evaluate(context);
     }
 
-    public Map<FieldName, ?> evaluate(PreprocessorContext context) {
+    public Map<FieldName, ?> evaluate(TransformerContext context) {
         Map<FieldName, Object> result = new LinkedHashMap<>();
-        List<FieldName> fieldNames = new LinkedList<>(getTransformedFields());
-        for (FieldName fieldName : fieldNames) {
-            FieldValue value = context.evaluate(fieldName);
-            result.put(fieldName, value);
+        List<DerivedField> derivedFields = new LinkedList<>(getTransformFields());
+        for (DerivedField derivedField : derivedFields) {
+            FieldValue value = context.evaluate(derivedField.getName());
+            result.put(derivedField.getName(), value);
         }
         return result;
     }
 
-    public PMML getPmml() {
+    public PMML getPMML() {
         return pmml;
     }
 }
