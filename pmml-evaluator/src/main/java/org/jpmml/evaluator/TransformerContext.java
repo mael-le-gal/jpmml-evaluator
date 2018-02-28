@@ -8,13 +8,9 @@ import java.util.Map;
 public class TransformerContext extends EvaluationContext {
     private Map<FieldName, ?> arguments = Collections.emptyMap();
 
-    private Transformer transformer = null;
+    private final Transformer transformer;
 
     TransformerContext(Transformer transformer) {
-        setTransformer(transformer);
-    }
-
-    private void setTransformer(Transformer transformer) {
         this.transformer = transformer;
     }
 
@@ -49,12 +45,23 @@ public class TransformerContext extends EvaluationContext {
             Map<FieldName, ?> arguments = getArguments();
             Object value = arguments.get(name);
             if (value == null) {
-                throw new MissingValueException(name);
+                return declareMissing(name);
             }
             return declare(name, value);
         }
 
         throw new MissingFieldException(name);
+    }
+
+    /**
+     * Declare a field as Missing one
+     * @param name The name of the field
+     * @return The field value (would be 'null' also)
+     */
+    private FieldValue declareMissing(FieldName name) {
+        // Casting should stay in place in order to avoid calling 'declare(FieldName,Object)'
+        // which would result in exception
+        return declare(name, (FieldValue)null);
     }
 
     private Transformer getTransformer() {
