@@ -18,8 +18,6 @@
  */
 package org.jpmml.evaluator;
 
-import java.util.List;
-
 abstract
 public class Value<V extends Number> implements Comparable<Value<V>> {
 
@@ -52,17 +50,12 @@ public class Value<V extends Number> implements Comparable<Value<V>> {
 	abstract
 	public Value<V> add(double coefficient, Number factor);
 
-	/**
-	 * <p>
-	 * Adds <code>coefficient * (factor ^ exponent)</code>.
-	 * </p>
-	 */
 	@Operation (
-		value = "<apply><plus/>${this}<apply><times/>${0}<apply><power/>${1}${2}</apply></apply></apply>",
-		initialValue = "<apply><times/>${0}<apply><power/>${1}${2}</apply></apply>"
+		value = "<apply><plus/>${this}<apply><times/>${0}${1}${2}</apply></apply>",
+		initialValue = "<apply><times/>${0}${1}${2}</apply>"
 	)
 	abstract
-	public Value<V> add(double coefficient, Number factor, int exponent);
+	public Value<V> add(double coefficient, Number firstFactor, Number secondFactor);
 
 	/**
 	 * <p>
@@ -74,7 +67,19 @@ public class Value<V extends Number> implements Comparable<Value<V>> {
 		initialValue = "<apply><times/>${0}${1}</apply>"
 	)
 	abstract
-	public Value<V> add(double coefficient, List<? extends Number> factors);
+	public Value<V> add(double coefficient, Number... factors);
+
+	/**
+	 * <p>
+	 * Adds <code>coefficient * (factor ^ exponent)</code>.
+	 * </p>
+	 */
+	@Operation (
+		value = "<apply><plus/>${this}<apply><times/>${0}<apply><power/>${1}${2}</apply></apply></apply>",
+		initialValue = "<apply><times/>${0}<apply><power/>${1}${2}</apply></apply>"
+	)
+	abstract
+	public Value<V> add(double coefficient, Number factor, int exponent);
 
 	@Operation (
 		value = "<apply><minus/>${this}${0}</apply>",

@@ -21,8 +21,8 @@ package org.jpmml.evaluator.functions;
 import java.util.List;
 import java.util.Objects;
 
-import org.dmg.pmml.DataType;
 import org.jpmml.evaluator.FieldValue;
+import org.jpmml.evaluator.FieldValues;
 import org.jpmml.evaluator.Function;
 import org.jpmml.evaluator.FunctionException;
 
@@ -36,54 +36,60 @@ public class AbstractFunction implements Function {
 		setName(Objects.requireNonNull(name));
 	}
 
-	protected void checkArguments(List<FieldValue> arguments, int size){
-		checkArguments(arguments, size, false);
-	}
+	protected void checkFixedArityArguments(List<FieldValue> arguments, int arity){
 
-	/**
-	 * <p>
-	 * Validates arguments for a function that has a fixed number of formal parameters.
-	 * </p>
-	 *
-	 * @param size The number of arguments.
-	 * @param allowNulls <code>true</code> if missing arguments are permitted, <code>false</code> otherwise.
-	 *
-	 * @throws FunctionException If the validation fails.
-	 */
-	protected void checkArguments(List<FieldValue> arguments, int size, boolean allowNulls){
-
-		if(arguments.size() != size){
-			throw new FunctionException(this, "Expected " + size + " arguments, got " + arguments.size() + " arguments");
-		} // End if
-
-		if(!allowNulls && arguments.contains(null)){
-			throw new FunctionException(this, "Missing arguments");
+		if(arguments.size() != arity){
+			throw new FunctionException(this, "Expected " + arity + " values, got " + arguments.size() + " values");
 		}
 	}
 
-	protected void checkVariableArguments(List<FieldValue> arguments, int minSize){
-		checkVariableArguments(arguments, minSize, false);
+	protected void checkVariableArityArguments(List<FieldValue> arguments, int minArity){
+
+		if(arguments.size() < minArity){
+			throw new FunctionException(this, "Expected " + minArity + " or more values, got " + arguments.size() + " values");
+		}
 	}
 
-	/**
-	 * <p>
-	 * Validates arguments for a function that has a variable number ("<code>n</code> or more") of formal parameters.
-	 * </p>
-	 *
-	 * @param minSize The minimum number of arguments.
-	 * @param allowNulls <code>true</code> if missing arguments are allowed, <code>false</code> otherwise.
-	 *
-	 * @throws FunctionException If the validation fails.
-	 */
-	protected void checkVariableArguments(List<FieldValue> arguments, int minSize, boolean allowNulls){
+	protected void checkVariableArityArguments(List<FieldValue> arguments, int minArity, int maxArity){
 
-		if(arguments.size() < minSize){
-			throw new FunctionException(this, "Expected " + minSize + " or more arguments, got " + arguments.size() + " arguments");
-		} // End if
+		if(arguments.size() < minArity || arguments.size() > maxArity){
+			throw new FunctionException(this, "Expected " + minArity + " to " + maxArity + " values, got " + arguments.size() + " values");
+ 		}
+ 	}
 
-		if(!allowNulls && arguments.contains(null)){
-			throw new FunctionException(this, "Missing arguments");
+	protected FieldValue getOptionalArgument(List<FieldValue> arguments, int index){
+		return getOptionalArgument(arguments, index, null);
+	}
+
+	protected FieldValue getOptionalArgument(List<FieldValue> arguments, int index, String alias){
+		FieldValue argument = arguments.get(index);
+
+		return checkArgument(argument, index, alias);
+	}
+
+	protected FieldValue getRequiredArgument(List<FieldValue> arguments, int index){
+		return getRequiredArgument(arguments, index, null);
+	}
+
+	protected FieldValue getRequiredArgument(List<FieldValue> arguments, int index, String alias){
+		FieldValue argument = arguments.get(index);
+
+		if(Objects.equals(FieldValues.MISSING_VALUE, argument)){
+
+			if(alias != null){
+				throw new FunctionException(this, "Missing \'" + alias + "\' value at position " + index);
+			} else
+
+			{
+				throw new FunctionException(this, "Missing value at position " + index);
+			}
 		}
+
+		return checkArgument(argument, index, alias);
+	}
+
+	protected FieldValue checkArgument(FieldValue argument, int index, String alias){
+		return argument;
 	}
 
 	@Override
@@ -93,18 +99,5 @@ public class AbstractFunction implements Function {
 
 	private void setName(String name){
 		this.name = name;
-	}
-
-	static
-	protected DataType integerToDouble(DataType dataType){
-
-		switch(dataType){
-			case INTEGER:
-				return DataType.DOUBLE;
-			default:
-				break;
-		}
-
-		return dataType;
 	}
 }

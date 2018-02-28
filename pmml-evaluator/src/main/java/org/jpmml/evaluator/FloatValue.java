@@ -18,8 +18,6 @@
  */
 package org.jpmml.evaluator;
 
-import java.util.List;
-
 public class FloatValue extends Value<Float> {
 
 	protected float value = 0f;
@@ -86,23 +84,30 @@ public class FloatValue extends Value<Float> {
 	}
 
 	@Override
-	public FloatValue add(double coefficient, Number factor, int exponent){
-		this.value += (float)coefficient * FloatValue.pow(factor.floatValue(), exponent);
+	public FloatValue add(double coefficient, Number firstFactor, Number secondFactor){
+		this.value += (float)coefficient * firstFactor.floatValue() * secondFactor.floatValue();
 
 		return this;
 	}
 
 	@Override
-	public FloatValue add(double coefficient, List<? extends Number> factors){
+	public FloatValue add(double coefficient, Number... factors){
 		float value = (float)coefficient;
 
-		for(int i = 0; i < factors.size(); i++){
-			Number factor = factors.get(i);
+		for(int i = 0; i < factors.length; i++){
+			Number factor = factors[i];
 
 			value *= factor.floatValue();
 		}
 
 		this.value += value;
+
+		return this;
+	}
+
+	@Override
+	public FloatValue add(double coefficient, Number factor, int exponent){
+		this.value += (float)coefficient * FloatValue.pow(factor.floatValue(), exponent);
 
 		return this;
 	}

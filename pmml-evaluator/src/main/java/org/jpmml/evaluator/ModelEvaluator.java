@@ -60,7 +60,6 @@ import org.dmg.pmml.ResultFeature;
 import org.dmg.pmml.Target;
 import org.dmg.pmml.Targets;
 import org.dmg.pmml.TransformationDictionary;
-import org.dmg.pmml.TypeDefinitionField;
 import org.dmg.pmml.VerificationField;
 import org.dmg.pmml.VerificationFields;
 
@@ -70,6 +69,8 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 	private PMML pmml = null;
 
 	private M model = null;
+
+	private ModelEvaluatorFactory modelEvaluatorFactory = null;
 
 	private ValueFactoryFactory valueFactoryFactory = null;
 
@@ -157,10 +158,21 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 	abstract
 	public Map<FieldName, ?> evaluate(ModelEvaluationContext context);
 
-	protected void configure(ModelEvaluatorFactory modelEvaluatorFactory){
-		ValueFactoryFactory valueFactoryFactory = modelEvaluatorFactory.getValueFactoryFactory();
+	/**
+	 * <p>
+	 * Configures the runtime behaviour of this Evaluator instance.
+	 * </p>
+	 *
+	 * <p>
+	 * Must be called once before the first evaluation.
+	 * May be called any number of times between subsequent evaluations.
+	 * </p>
+	 */
+	public void configure(ModelEvaluatorFactory modelEvaluatorFactory){
+		setModelEvaluatorFactory(modelEvaluatorFactory);
 
-		setValueFactoryFactory(valueFactoryFactory);
+		setValueFactoryFactory(null);
+		setValueFactory(null);
 	}
 
 	@Override
@@ -174,27 +186,6 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 		M model = getModel();
 
 		return model.getMathContext();
-	}
-
-	public ValueFactory<?> getValueFactory(){
-
-		if(this.valueFactory == null){
-			this.valueFactory = createValueFactory();
-		}
-
-		return this.valueFactory;
-	}
-
-	protected ValueFactory<?> createValueFactory(){
-		ValueFactoryFactory valueFactoryFactory = getValueFactoryFactory();
-
-		if(valueFactoryFactory == null){
-			valueFactoryFactory = ValueFactoryFactory.newInstance();
-		}
-
-		MathContext mathContext = getMathContext();
-
-		return valueFactoryFactory.newValueFactory(mathContext);
 	}
 
 	public DataField getDataField(FieldName name){
@@ -373,7 +364,7 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 			for(InputField inputField : inputFields){
 				FieldName name = inputField.getName();
 
-				FieldValue value = EvaluatorUtil.prepare(inputField, record.get(name));
+				FieldValue value = inputField.prepare(record.get(name));
 
 				arguments.put(name, value);
 			}
@@ -440,8 +431,8 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 		return evaluate(context);
 	}
 
-	protected TypeDefinitionField resolveField(FieldName name){
-		TypeDefinitionField result = getDataField(name);
+	protected Field<?> resolveField(FieldName name){
+		Field<?> result = getDataField(name);
 
 		if(result == null){
 			result = resolveDerivedField(name);
@@ -465,7 +456,7 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 
 		List<OutputField> outputFields = getOutputFields();
 		if(outputFields.size() > 0){
-			List<TargetReferenceField> targetReferenceFields = null;
+			List<ResidualInputField> residualInputFields = null;
 
 			for(OutputField outputField : outputFields){
 				org.dmg.pmml.OutputField pmmlOutputField = outputField.getOutputField();
@@ -494,19 +485,17 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 					throw new InvisibleFieldException(targetFieldName, pmmlOutputField);
 				}
 
-				Target target = getTarget(targetFieldName);
+				ResidualInputField residualInputField = new ResidualInputField(dataField, miningField);
 
-				TargetReferenceField targetReferenceField = new TargetReferenceField(dataField, miningField, target);
-
-				if(targetReferenceFields == null){
-					targetReferenceFields = new ArrayList<>();
+				if(residualInputFields == null){
+					residualInputFields = new ArrayList<>();
 				}
 
-				targetReferenceFields.add(targetReferenceField);
+				residualInputFields.add(residualInputField);
 			}
 
-			if(targetReferenceFields != null && targetReferenceFields.size() > 0){
-				inputFields = ImmutableList.copyOf(Iterables.concat(inputFields, targetReferenceFields));
+			if(residualInputFields != null && residualInputFields.size() > 0){
+				inputFields = ImmutableList.copyOf(Iterables.concat(inputFields, residualInputFields));
 			}
 		}
 
@@ -530,7 +519,7 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 					continue;
 				}
 
-				Field field = getDataField(name);
+				Field<?> field = getDataField(name);
 				if(field == null){
 					field = new VariableField(name);
 				}
@@ -639,6 +628,51 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 		return CacheUtil.getValue(model, cache, loader);
 	}
 
+	protected ModelEvaluatorFactory ensureModelEvaluatorFactory(){
+		ModelEvaluatorFactory modelEvaluatorFactory = getModelEvaluatorFactory();
+
+		if(modelEvaluatorFactory == null){
+			modelEvaluatorFactory = ModelEvaluatorFactory.newInstance();
+
+			setModelEvaluatorFactory(modelEvaluatorFactory);
+		}
+
+		return modelEvaluatorFactory;
+	}
+
+	protected ValueFactoryFactory ensureValueFactoryFactory(){
+		ValueFactoryFactory valueFactoryFactory = getValueFactoryFactory();
+
+		if(valueFactoryFactory == null){
+			ModelEvaluatorFactory modelEvaluatorFactory = ensureModelEvaluatorFactory();
+
+			valueFactoryFactory = modelEvaluatorFactory.getValueFactoryFactory();
+			if(valueFactoryFactory == null){
+				valueFactoryFactory = ValueFactoryFactory.newInstance();
+			}
+
+			setValueFactoryFactory(valueFactoryFactory);
+		}
+
+		return valueFactoryFactory;
+	}
+
+	protected ValueFactory<?> ensureValueFactory(){
+		ValueFactory<?> valueFactory = getValueFactory();
+
+		if(valueFactory == null){
+			ValueFactoryFactory valueFactoryFactory = ensureValueFactoryFactory();
+
+			MathContext mathContext = getMathContext();
+
+			valueFactory = valueFactoryFactory.newValueFactory(mathContext);
+
+			setValueFactory(valueFactory);
+		}
+
+		return valueFactory;
+	}
+
 	public PMML getPMML(){
 		return this.pmml;
 	}
@@ -655,12 +689,28 @@ public class ModelEvaluator<M extends Model> implements Evaluator, Serializable 
 		this.model = model;
 	}
 
+	public ModelEvaluatorFactory getModelEvaluatorFactory(){
+		return this.modelEvaluatorFactory;
+	}
+
+	private void setModelEvaluatorFactory(ModelEvaluatorFactory modelEvaluatorFactory){
+		this.modelEvaluatorFactory = modelEvaluatorFactory;
+	}
+
 	public ValueFactoryFactory getValueFactoryFactory(){
 		return this.valueFactoryFactory;
 	}
 
 	private void setValueFactoryFactory(ValueFactoryFactory valueFactoryFactory){
 		this.valueFactoryFactory = valueFactoryFactory;
+	}
+
+	public ValueFactory<?> getValueFactory(){
+		return this.valueFactory;
+	}
+
+	private void setValueFactory(ValueFactory<?> valueFactory){
+		this.valueFactory = valueFactory;
 	}
 
 	static

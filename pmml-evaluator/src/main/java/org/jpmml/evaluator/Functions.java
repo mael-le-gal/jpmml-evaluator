@@ -39,6 +39,7 @@ import org.apache.commons.math3.stat.descriptive.summary.Sum;
 import org.dmg.pmml.DataType;
 import org.dmg.pmml.OpType;
 import org.jpmml.evaluator.functions.AbstractFunction;
+import org.jpmml.evaluator.functions.AbstractNumericFunction;
 import org.jpmml.evaluator.functions.AggregateFunction;
 import org.jpmml.evaluator.functions.ArithmeticFunction;
 import org.jpmml.evaluator.functions.BinaryBooleanFunction;
@@ -115,8 +116,13 @@ public interface Functions {
 		}
 
 		@Override
-		public DataType getResultType(DataType dataType){
-			return integerToDouble(dataType);
+		public DataType getResultDataType(DataType dataType){
+
+			if((DataType.INTEGER).equals(dataType)){
+				return DataType.DOUBLE;
+			}
+
+			return dataType;
 		}
 	};
 
@@ -187,21 +193,27 @@ public interface Functions {
 	MathFunction ABS = new MathFunction("abs"){
 
 		@Override
-		public Double evaluate(Number value){
+		public Number evaluate(Number value){
+
+			if(value instanceof Float){
+				return Math.abs(value.floatValue());
+			}
+
 			return Math.abs(value.doubleValue());
 		}
 	};
 
-	AbstractFunction POW = new AbstractFunction("pow"){
+	AbstractNumericFunction POW = new AbstractNumericFunction("pow"){
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 2);
+			checkFixedArityArguments(arguments, 2);
 
-			FieldValue left = arguments.get(0);
-			FieldValue right = arguments.get(1);
+			return evaluate(getRequiredArgument(arguments, 0), getRequiredArgument(arguments, 1));
+		}
 
-			DataType dataType = TypeUtil.getResultDataType(left.getDataType(), right.getDataType());
+		private FieldValue evaluate(FieldValue left, FieldValue right){
+			DataType dataType = TypeUtil.getCommonDataType(left.getDataType(), right.getDataType());
 
 			Double result = Math.pow((left.asNumber()).doubleValue(), (right.asNumber()).doubleValue());
 
@@ -209,16 +221,17 @@ public interface Functions {
 		}
 	};
 
-	AbstractFunction THRESHOLD = new AbstractFunction("threshold"){
+	AbstractNumericFunction THRESHOLD = new AbstractNumericFunction("threshold"){
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 2);
+			checkFixedArityArguments(arguments, 2);
 
-			FieldValue left = arguments.get(0);
-			FieldValue right = arguments.get(1);
+			return evaluate(getRequiredArgument(arguments, 0), getRequiredArgument(arguments, 1));
+		}
 
-			DataType dataType = TypeUtil.getResultDataType(left.getDataType(), right.getDataType());
+		private FieldValue evaluate(FieldValue left, FieldValue right){
+			DataType dataType = TypeUtil.getCommonDataType(left.getDataType(), right.getDataType());
 
 			Integer result = ((left.asNumber()).doubleValue() > (right.asNumber()).doubleValue()) ? Numbers.INTEGER_ONE : Numbers.INTEGER_ZERO;
 
@@ -229,7 +242,7 @@ public interface Functions {
 	MathFunction FLOOR = new MathFunction("floor"){
 
 		@Override
-		public Double evaluate(Number number){
+		public Number evaluate(Number number){
 			return Math.floor(number.doubleValue());
 		}
 	};
@@ -237,7 +250,7 @@ public interface Functions {
 	MathFunction CEIL = new MathFunction("ceil"){
 
 		@Override
-		public Double evaluate(Number number){
+		public Number evaluate(Number number){
 			return Math.ceil(number.doubleValue());
 		}
 	};
@@ -245,15 +258,20 @@ public interface Functions {
 	MathFunction ROUND = new MathFunction("round"){
 
 		@Override
-		public Double evaluate(Number number){
-			return (double)Math.round(number.doubleValue());
+		public Number evaluate(Number number){
+
+			if(number instanceof Float){
+				Math.round(number.floatValue());
+			}
+
+			return Math.round(number.doubleValue());
 		}
 	};
 
 	MathFunction RINT = new MathFunction("x-rint"){
 
 		@Override
-		public Double evaluate(Number number){
+		public Number evaluate(Number number){
 			return Math.rint(number.doubleValue());
 		}
 	};
@@ -261,16 +279,16 @@ public interface Functions {
 	ValueFunction IS_MISSING = new ValueFunction("isMissing"){
 
 		@Override
-		public Boolean evaluate(FieldValue value){
-			return Boolean.valueOf(value == null);
+		public Boolean evaluate(boolean isMissing){
+			return Boolean.valueOf(isMissing);
 		}
 	};
 
 	ValueFunction IS_NOT_MISSING = new ValueFunction("isNotMissing"){
 
 		@Override
-		public Boolean evaluate(FieldValue value){
-			return Boolean.valueOf(value != null);
+		public Boolean evaluate(boolean isMissing){
+			return Boolean.valueOf(!isMissing);
 		}
 	};
 
@@ -349,16 +367,16 @@ public interface Functions {
 	ValueListFunction IS_IN = new ValueListFunction("isIn"){
 
 		@Override
-		public Boolean evaluate(int index){
-			return Boolean.valueOf(index >= 0);
+		public Boolean evaluate(boolean isIn){
+			return Boolean.valueOf(isIn);
 		}
 	};
 
 	ValueListFunction IS_NOT_IN = new ValueListFunction("isNotIn"){
 
 		@Override
-		public Boolean evaluate(int index){
-			return Boolean.valueOf(index < 0);
+		public Boolean evaluate(boolean isIn){
+			return Boolean.valueOf(!isIn);
 		}
 	};
 
@@ -366,36 +384,21 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
+			checkVariableArityArguments(arguments, 2, 3);
 
-			if((arguments.size() < 2 || arguments.size() > 3)){
-				throw new FunctionException(this, "Expected 2 or 3 arguments, got " + arguments.size() + " arguments");
-			}
+			Boolean flag = getRequiredArgument(arguments, 0).asBoolean();
 
-			FieldValue flag = arguments.get(0);
-			if(flag == null){
-				throw new FunctionException(this, "Missing arguments");
-			} // End if
-
-			if(flag.asBoolean()){
-				FieldValue trueValue = arguments.get(1);
-
-				// "The THEN part is required"
-				if(trueValue == null){
-					throw new FunctionException(this, "Missing arguments");
-				}
-
-				return trueValue;
+			if(flag){
+				return getRequiredArgument(arguments, 1);
 			} else
 
 			{
-				FieldValue falseValue = (arguments.size() > 2 ? arguments.get(2) : null);
-
 				// "The ELSE part is optional. If the ELSE part is absent, then a missing value is returned"
-				if(falseValue == null){
-					return null;
+				if(arguments.size() > 2){
+					return getOptionalArgument(arguments, 2);
 				}
 
-				return falseValue;
+				return FieldValues.MISSING_VALUE;
 			}
 		}
 	};
@@ -420,21 +423,21 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 3);
+			checkFixedArityArguments(arguments, 3);
 
-			String string = (arguments.get(0)).asString();
+			String string = getRequiredArgument(arguments, 0, "input").asString();
 
-			int position = (arguments.get(1)).asInteger();
+			int position = getRequiredArgument(arguments, 1, "startPos").asInteger();
 			if(position < 1){
-				throw new FunctionException(this, "Invalid position value " + position + ". Must be equal or greater than 1");
+				throw new FunctionException(this, "Invalid \'startPos\' value " + position + ". Must be equal or greater than 1");
 			}
 
 			// "The first character of a string is located at position 1 (not position 0)"
 			int javaPosition = Math.min(position - 1, string.length());
 
-			int length = (arguments.get(2)).asInteger();
+			int length = getRequiredArgument(arguments, 2, "length").asInteger();
 			if(length < 0){
-				throw new FunctionException(this, "Invalid length value " + length);
+				throw new FunctionException(this, "Invalid \'length\' value " + length);
 			}
 
 			int javaLength = Math.min(length, (string.length() - javaPosition));
@@ -458,7 +461,7 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkVariableArguments(arguments, 2, true);
+			checkVariableArityArguments(arguments, 2);
 
 			StringBuilder sb = new StringBuilder();
 
@@ -477,15 +480,17 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 3);
+			checkFixedArityArguments(arguments, 3);
 
-			String input = (arguments.get(0)).asString();
-			String regex = (arguments.get(1)).asString();
-			String replacement = (arguments.get(2)).asString();
+			String input = getRequiredArgument(arguments, 0, "input").asString();
+
+			String regex = getRequiredArgument(arguments, 1, "pattern").asString();
 
 			Pattern pattern = RegExUtil.compile(regex, null);
 
 			Matcher matcher = pattern.matcher(input);
+
+			String replacement = getRequiredArgument(arguments, 2, "replacement").asString();
 
 			String result = matcher.replaceAll(replacement);
 
@@ -497,10 +502,11 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 2);
+			checkFixedArityArguments(arguments, 2);
 
-			String input = (arguments.get(0)).asString();
-			String pattern = (arguments.get(1)).asString();
+			String input = getRequiredArgument(arguments, 0, "input").asString();
+
+			String pattern = getRequiredArgument(arguments, 1, "pattern").asString();
 
 			Matcher matcher = Pattern.compile(pattern).matcher(input);
 
@@ -515,19 +521,20 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 2);
+			checkFixedArityArguments(arguments, 2);
 
-			FieldValue value = arguments.get(0);
-			FieldValue pattern = arguments.get(1);
+			Number number = getRequiredArgument(arguments, 0, "input").asNumber();
+
+			String pattern = getRequiredArgument(arguments, 1, "pattern").asString();
 
 			String result;
 
 			// According to the java.util.Formatter javadoc, Java formatting is more strict than C's printf formatting.
 			// For example, in Java, if a conversion is incompatible with a flag, an exception will be thrown. In C's printf, inapplicable flags are silently ignored.
 			try {
-				result = String.format(pattern.asString(), value.asNumber());
+				result = String.format(pattern, number);
 			} catch(IllegalFormatException ife){
-				throw new FunctionException(this, "Invalid format value")
+				throw new FunctionException(this, "Invalid \'pattern\' value")
 					.initCause(ife);
 			}
 
@@ -539,21 +546,20 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 2);
+			checkFixedArityArguments(arguments, 2);
 
-			FieldValue value = arguments.get(0);
-			FieldValue pattern = arguments.get(1);
-
-			ZonedDateTime zonedDateTime = value.asZonedDateTime(ZoneId.systemDefault());
+			ZonedDateTime zonedDateTime = getRequiredArgument(arguments, 0, "input").asZonedDateTime(ZoneId.systemDefault());
 
 			Date date = Date.from(zonedDateTime.toInstant());
+
+			String pattern = translatePattern(getRequiredArgument(arguments, 1, "pattern").asString());
 
 			String result;
 
 			try {
-				result = String.format(translatePattern(pattern.asString()), date);
+				result = String.format(pattern, date);
 			} catch(IllegalFormatException ife){
-				throw new FunctionException(this, "Invalid format value")
+				throw new FunctionException(this, "Invalid \'pattern\' value")
 					.initCause(ife);
 			}
 
@@ -586,11 +592,11 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 2);
+			checkFixedArityArguments(arguments, 2);
 
-			LocalDate instant = (arguments.get(0)).asLocalDate();
+			LocalDate instant = getRequiredArgument(arguments, 0, "input").asLocalDate();
 
-			int year = (arguments.get(1)).asInteger();
+			int year = getRequiredArgument(arguments, 1, "referenceYear").asInteger();
 
 			DaysSinceDate period = new DaysSinceDate(LocalDate.of(year, 1, 1), instant);
 
@@ -602,9 +608,9 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 1);
+			checkFixedArityArguments(arguments, 1);
 
-			LocalTime instant = (arguments.get(0)).asLocalTime();
+			LocalTime instant = getRequiredArgument(arguments, 0, "input").asLocalTime();
 
 			SecondsSinceMidnight period = new SecondsSinceMidnight(instant.toSecondOfDay());
 
@@ -616,11 +622,11 @@ public interface Functions {
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 2);
+			checkFixedArityArguments(arguments, 2);
 
-			LocalDateTime instant = (arguments.get(0)).asLocalDateTime();
+			LocalDateTime instant = getRequiredArgument(arguments, 0, "input").asLocalDateTime();
 
-			int year = (arguments.get(1)).asInteger();
+			int year = getRequiredArgument(arguments, 1, "referenceYear").asInteger();
 
 			SecondsSinceDate period = new SecondsSinceDate(LocalDate.of(year, 1, 1), instant);
 
@@ -628,14 +634,15 @@ public interface Functions {
 		}
 	};
 
-	AbstractFunction HYPOT = new AbstractFunction("x-hypot"){
+	AbstractNumericFunction HYPOT = new AbstractNumericFunction("x-hypot"){
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 2);
+			checkFixedArityArguments(arguments, 2);
 
-			Number x = (arguments.get(0)).asNumber();
-			Number y = (arguments.get(1)).asNumber();
+			Number x = getRequiredArgument(arguments, 0).asNumber();
+
+			Number y = getRequiredArgument(arguments, 1).asNumber();
 
 			Double result = Math.hypot(x.doubleValue(), y.doubleValue());
 
@@ -691,14 +698,15 @@ public interface Functions {
 		}
 	};
 
-	AbstractFunction ATAN2 = new AbstractFunction("x-atan2"){
+	AbstractNumericFunction ATAN2 = new AbstractNumericFunction("x-atan2"){
 
 		@Override
 		public FieldValue evaluate(List<FieldValue> arguments){
-			checkArguments(arguments, 2);
+			checkFixedArityArguments(arguments, 2);
 
-			Number y = (arguments.get(0)).asNumber();
-			Number x = (arguments.get(1)).asNumber();
+			Number y = getRequiredArgument(arguments, 0).asNumber();
+
+			Number x = getRequiredArgument(arguments, 1).asNumber();
 
 			Double result = Math.atan2(y.doubleValue(), x.doubleValue());
 			if(result.isNaN()){

@@ -149,7 +149,7 @@ public class ClusteringModelEvaluator extends ModelEvaluator<ClusteringModel> im
 		switch(mathContext){
 			case FLOAT:
 			case DOUBLE:
-				valueFactory = getValueFactory();
+				valueFactory = ensureValueFactory();
 				break;
 			default:
 				throw new UnsupportedAttributeException(clusteringModel, mathContext);
@@ -329,7 +329,7 @@ public class ClusteringModelEvaluator extends ModelEvaluator<ClusteringModel> im
 
 			List<? extends Number> values = ArrayUtil.asNumberList(array);
 
-			return ImmutableList.copyOf(FieldValueUtil.createAll(null, OpType.CONTINUOUS, values));
+			return ImmutableList.copyOf(FieldValueUtil.createAll(DataType.DOUBLE, OpType.CONTINUOUS, values));
 		}
 	});
 

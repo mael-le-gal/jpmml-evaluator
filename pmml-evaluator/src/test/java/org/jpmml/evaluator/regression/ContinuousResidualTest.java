@@ -27,7 +27,7 @@ import org.dmg.pmml.FieldName;
 import org.jpmml.evaluator.InputField;
 import org.jpmml.evaluator.ModelEvaluator;
 import org.jpmml.evaluator.ModelEvaluatorTest;
-import org.jpmml.evaluator.TargetReferenceField;
+import org.jpmml.evaluator.ResidualInputField;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -53,7 +53,7 @@ public class ContinuousResidualTest extends ModelEvaluatorTest {
 
 		InputField inputField = Iterables.getOnlyElement(inputFields);
 
-		assertTrue(inputField instanceof TargetReferenceField);
+		assertTrue(inputField instanceof ResidualInputField);
 
 		Map<FieldName, ?> arguments = createArguments("input", 0.8d, "target", 3d);
 
@@ -62,5 +62,11 @@ public class ContinuousResidualTest extends ModelEvaluatorTest {
 		FieldName field = FieldName.create("residual");
 
 		assertEquals(2.6d, (Double)getOutput(result, field), 1e-8);
+
+		arguments = createArguments("input", 0.8d, "target", null);
+
+		result = evaluator.evaluate(arguments);
+
+		assertEquals(1.6d, (Double)getOutput(result, field), 1e-8);
 	}
 }

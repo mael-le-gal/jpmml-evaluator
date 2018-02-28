@@ -58,8 +58,6 @@ public class OutputField extends ResultField {
 
 	/**
 	 * @return the data type, or <code>null</code>.
-	 *
-	 * @see OutputUtil#getDataType(org.dmg.pmml.OutputField, ModelEvaluator)
 	 */
 	@Override
 	public DataType getDataType(){
@@ -91,7 +89,6 @@ public class OutputField extends ResultField {
 	 * whereas non-final values may or may not be available depending on the "evaluation path" of a particular argument data record.
 	 * </p>
 	 *
-	 * <p>
 	 * Filtering output fields based on their "finality":
 	 * <pre>
 	 * List&lt;OutputField&gt; outputFields = evaluator.getOutputFields();
@@ -103,7 +100,6 @@ public class OutputField extends ResultField {
 	 *   }
 	 * }
 	 * </pre>
-	 * </p>
 	 */
 	public boolean isFinalResult(){
 		org.dmg.pmml.OutputField outputField = getOutputField();
@@ -136,7 +132,6 @@ public class OutputField extends ResultField {
 	 * Returns the nesting depth relative to the "host" {@link Evaluator} instance.
 	 * </p>
 	 *
-	 * <p>
 	 * Filtering output fields based on their origin:
 	 * <pre>
 	 * List&lt;OutputField&gt; outputFields = evaluator.getOutputFields();
@@ -147,12 +142,11 @@ public class OutputField extends ResultField {
 	 *     // Defined by the top-level model
 	 *   } else
 	 *
-	 *   if(depth > 0){
+	 *   if(depth &gt; 0){
 	 *     // Defined by one of the nested models
 	 *   }
 	 * }
 	 * </pre>
-	 * </p>
 	 *
 	 * @return the nesting depth.
 	 */

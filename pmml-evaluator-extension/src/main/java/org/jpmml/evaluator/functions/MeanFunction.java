@@ -36,7 +36,7 @@ import org.jpmml.evaluator.TypeUtil;
  * Pseudo-declaration of function:
  * <pre>
  *   &lt;DefineFunction name="..." dataType="double"&gt;
- *     &ltParameterField name="values" dataType="collection of numbers"/&gt;
+ *     &lt;ParameterField name="values" dataType="collection of numbers"/&gt;
  *   &lt;/DefineFunction&gt;
  * </pre>
  *
@@ -54,9 +54,9 @@ public class MeanFunction extends AbstractFunction {
 
 	@Override
 	public FieldValue evaluate(List<FieldValue> arguments){
-		checkArguments(arguments, 1);
+		checkFixedArityArguments(arguments, 1);
 
-		Collection<?> values = FieldValueUtil.getValue(Collection.class, arguments.get(0));
+		Collection<?> values = FieldValueUtil.getValue(Collection.class, getRequiredArgument(arguments, 0, "values"));
 
 		Double result = evaluate(values);
 
@@ -68,9 +68,9 @@ public class MeanFunction extends AbstractFunction {
 		Mean statistic = new Mean();
 
 		for(Object value : values){
-			Double doubleValue = (Double)TypeUtil.parseOrCast(DataType.DOUBLE, value);
+			Number number = (Number)TypeUtil.parseOrCast(DataType.DOUBLE, value);
 
-			statistic.increment(doubleValue.doubleValue());
+			statistic.increment(number.doubleValue());
 		}
 
 		return statistic.getResult();

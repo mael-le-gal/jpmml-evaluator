@@ -54,7 +54,7 @@ public class DiscretizationUtil {
 	public FieldValue discretize(Discretize discretize, FieldValue value){
 		String result = discretize(discretize, value.asDouble());
 
-		return FieldValueUtil.create(discretize.getDataType(), null, result);
+		return FieldValueUtil.create(ExpressionUtil.getDataType(discretize, DataType.STRING), OpType.CATEGORICAL, result);
 	}
 
 	static
@@ -76,7 +76,7 @@ public class DiscretizationUtil {
 			throw new MissingAttributeException(mapValues, PMMLAttributes.MAPVALUES_OUTPUTCOLUMN);
 		}
 
-		DataType dataType = mapValues.getDataType();
+		DataType dataType = ExpressionUtil.getDataType(mapValues, DataType.STRING);
 
 		InlineTable inlineTable = InlineTableUtil.getInlineTable(mapValues);
 		if(inlineTable != null){
@@ -89,11 +89,11 @@ public class DiscretizationUtil {
 					throw new InvalidElementException(inlineTable);
 				}
 
-				return FieldValueUtil.create(dataType, null, result);
+				return FieldValueUtil.create(dataType, OpType.CATEGORICAL, result);
 			}
 		}
 
-		return FieldValueUtil.create(dataType, null, mapValues.getDefaultValue());
+		return FieldValueUtil.create(dataType, OpType.CATEGORICAL, mapValues.getDefaultValue());
 	}
 
 	static
@@ -299,7 +299,7 @@ public class DiscretizationUtil {
 
 			Collection<Map.Entry<Integer, String>> entries = columnValues.entrySet();
 			for(Map.Entry<Integer, String> entry : entries){
-				FieldValue value = FieldValueUtil.create(dataType, opType, entry.getValue());
+				FieldValue value = parse(dataType, opType, entry.getValue());
 				Integer row = entry.getKey();
 
 				result.put(value, row);

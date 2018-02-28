@@ -24,9 +24,7 @@ import java.util.Set;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import org.dmg.pmml.Array;
 import org.dmg.pmml.DataType;
 import org.dmg.pmml.OpType;
@@ -59,19 +57,14 @@ public class RichSimpleSetPredicate extends SimpleSetPredicate implements HasPar
 		return this.parsedValueSet;
 	}
 
-	private Iterable<FieldValue> parseArray(final DataType dataType, final OpType opType){
+	private List<FieldValue> parseArray(DataType dataType, OpType opType){
 		Array array = getArray();
+		if(array == null){
+			throw new MissingElementException(this, PMMLElements.SIMPLESETPREDICATE_ARRAY);
+		}
 
-		List<String> content = ArrayUtil.getContent(array);
+		List<?> content = ArrayUtil.getContent(array);
 
-		Function<String, FieldValue> function = new Function<String, FieldValue>(){
-
-			@Override
-			public FieldValue apply(String value){
-				return FieldValueUtil.create(dataType, opType, value);
-			}
-		};
-
-		return Iterables.transform(content, function);
+		return parseAll(dataType, opType, content);
 	}
 }

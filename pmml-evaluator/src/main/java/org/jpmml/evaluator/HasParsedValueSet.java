@@ -25,7 +25,7 @@ import org.dmg.pmml.HasValueSet;
 import org.dmg.pmml.OpType;
 import org.dmg.pmml.PMMLObject;
 
-public interface HasParsedValueSet<E extends PMMLObject & HasValueSet<E>> extends HasValueSet<E> {
+public interface HasParsedValueSet<E extends PMMLObject & HasValueSet<E>> extends HasValueSet<E>, ValueParser {
 
 	Set<FieldValue> getValueSet(DataType dataType, OpType opType);
 }

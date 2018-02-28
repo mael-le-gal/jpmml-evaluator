@@ -20,6 +20,7 @@ package org.jpmml.evaluator;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 
 import org.dmg.pmml.DataField;
 import org.dmg.pmml.DefineFunction;
@@ -28,7 +29,6 @@ import org.dmg.pmml.Field;
 import org.dmg.pmml.FieldName;
 import org.dmg.pmml.MiningField;
 import org.dmg.pmml.OutputField;
-import org.dmg.pmml.Target;
 import org.jpmml.evaluator.mining.MiningModelEvaluationContext;
 
 public class ModelEvaluationContext extends EvaluationContext {
@@ -51,6 +51,21 @@ public class ModelEvaluationContext extends EvaluationContext {
 
 	public ModelEvaluationContext(MiningModelEvaluationContext parent, ModelEvaluator<?> modelEvaluator){
 		setParent(parent);
+		setModelEvaluator(modelEvaluator);
+	}
+
+	@Override
+	public void reset(boolean purge){
+		super.reset(purge);
+
+		this.arguments = Collections.emptyMap();
+
+		this.compatible = false;
+	}
+
+	public void reset(ModelEvaluator<?> modelEvaluator, boolean purge){
+		reset(purge);
+
 		setModelEvaluator(modelEvaluator);
 	}
 
@@ -79,28 +94,11 @@ public class ModelEvaluationContext extends EvaluationContext {
 			case PREDICTED:
 			case TARGET:
 				{
-					Target target = modelEvaluator.getTarget(name);
-
-					return FieldValueUtil.prepareTargetValue(dataField, miningField, target, value);
+					return FieldValueUtil.prepareResidualInputValue(dataField, miningField, value);
 				}
 			default:
 				throw new UnsupportedAttributeException(miningField, usageType);
 		}
-	}
-
-	@Override
-	public void reset(boolean purge){
-		super.reset(purge);
-
-		this.arguments = Collections.emptyMap();
-
-		this.compatible = false;
-	}
-
-	public void reset(ModelEvaluator<?> modelEvaluator, boolean purge){
-		reset(purge);
-
-		setModelEvaluator(modelEvaluator);
 	}
 
 	@Override
@@ -155,7 +153,7 @@ public class ModelEvaluationContext extends EvaluationContext {
 			} // End if
 
 			if(parent != null){
-				Field field = resolveField(name, parent);
+				Field<?> field = resolveField(name, parent);
 				if(field != null){
 					FieldValue value = parent.evaluate(name);
 
@@ -215,7 +213,7 @@ public class ModelEvaluationContext extends EvaluationContext {
 	}
 
 	static
-	private Field resolveField(FieldName name, MiningModelEvaluationContext context){
+	private Field<?> resolveField(FieldName name, MiningModelEvaluationContext context){
 
 		while(context != null){
 			OutputField outputField = context.getOutputField(name);
@@ -235,13 +233,13 @@ public class ModelEvaluationContext extends EvaluationContext {
 	}
 
 	static
-	private FieldValue performValueTreatment(Field field, MiningField miningField, FieldValue value){
+	private FieldValue performValueTreatment(Field<?> field, MiningField miningField, FieldValue value){
 
 		if(MiningFieldUtil.isDefault(miningField)){
 			return value;
 		} // End if
 
-		if(value == null){
+		if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 			return FieldValueUtil.performMissingValueTreatment(field, miningField);
 		} else
 

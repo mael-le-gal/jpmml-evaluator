@@ -20,6 +20,7 @@ package org.jpmml.evaluator;
 
 import java.util.BitSet;
 import java.util.List;
+import java.util.Objects;
 
 import org.dmg.pmml.BinarySimilarity;
 import org.dmg.pmml.Chebychev;
@@ -53,7 +54,7 @@ public class MeasureUtil {
 	}
 
 	static
-	public <V extends Number> Value<V> evaluateSimilarity(ValueFactory<V> valueFactory, ComparisonMeasure comparisonMeasure, List<? extends ComparisonField> comparisonFields, BitSet flags, BitSet referenceFlags){
+	public <V extends Number> Value<V> evaluateSimilarity(ValueFactory<V> valueFactory, ComparisonMeasure comparisonMeasure, List<? extends ComparisonField<?>> comparisonFields, BitSet flags, BitSet referenceFlags){
 		Similarity measure = TypeUtil.cast(Similarity.class, comparisonMeasure.getMeasure());
 
 		int a11 = 0;
@@ -145,7 +146,7 @@ public class MeasureUtil {
 	}
 
 	static
-	public <V extends Number> Value<V> evaluateDistance(ValueFactory<V> valueFactory, ComparisonMeasure comparisonMeasure, List<? extends ComparisonField> comparisonFields, List<FieldValue> values, List<FieldValue> referenceValues, Value<V> adjustment){
+	public <V extends Number> Value<V> evaluateDistance(ValueFactory<V> valueFactory, ComparisonMeasure comparisonMeasure, List<? extends ComparisonField<?>> comparisonFields, List<FieldValue> values, List<FieldValue> referenceValues, Value<V> adjustment){
 		Distance measure = TypeUtil.cast(Distance.class, comparisonMeasure.getMeasure());
 
 		double innerPower;
@@ -185,7 +186,7 @@ public class MeasureUtil {
 			ComparisonField comparisonField = comparisonFields.get(i);
 
 			FieldValue value = values.get(i);
-			if(value == null){
+			if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 				continue;
 			}
 
@@ -226,7 +227,7 @@ public class MeasureUtil {
 	}
 
 	static
-	private <V extends Number> Value<V> evaluateInnerFunction(ValueFactory<V> valueFactory, ComparisonMeasure comparisonMeasure, ComparisonField comparisonField, FieldValue value, FieldValue referenceValue, double power){
+	private <V extends Number> Value<V> evaluateInnerFunction(ValueFactory<V> valueFactory, ComparisonMeasure comparisonMeasure, ComparisonField<?> comparisonField, FieldValue value, FieldValue referenceValue, double power){
 		CompareFunction compareFunction = comparisonField.getCompareFunction();
 
 		if(compareFunction == null){

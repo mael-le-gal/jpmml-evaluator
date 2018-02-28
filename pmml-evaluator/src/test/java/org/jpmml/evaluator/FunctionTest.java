@@ -24,7 +24,7 @@ import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 
-import org.dmg.pmml.OpType;
+import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -41,6 +41,14 @@ public class FunctionTest {
 
 		assertEquals(null, evaluate(Functions.PLUS, 1d, null));
 		assertEquals(null, evaluate(Functions.PLUS, null, 1d));
+
+		try {
+			evaluate(Functions.PLUS, true, true);
+
+			fail();
+		} catch(EvaluationException ee){
+			// Ignored
+		}
 
 		assertEquals(1, evaluate(Functions.MULTIPLY, 1, 1));
 		assertEquals(1f, evaluate(Functions.MULTIPLY, 1f, 1f));
@@ -90,19 +98,22 @@ public class FunctionTest {
 	}
 
 	@Test
-	public void evaluateMathFunctions(){
+	public void evaluateFpMathFunctions(){
 		assertEquals(0d, evaluate(Functions.LOG10, 1));
-		assertEquals(0f, evaluate(Functions.LOG10, 1f));
+		assertEquals(0d, evaluate(Functions.LOG10, 1f));
 
 		assertEquals(0d, evaluate(Functions.LN, 1));
-		assertEquals(0f, evaluate(Functions.LN, 1f));
+		assertEquals(0d, evaluate(Functions.LN, 1f));
 
 		assertEquals(1d, evaluate(Functions.EXP, 0));
-		assertEquals(1f, evaluate(Functions.EXP, 0f));
+		assertEquals(1d, evaluate(Functions.EXP, 0f));
 
 		assertEquals(1d, evaluate(Functions.SQRT, 1));
-		assertEquals(1f, evaluate(Functions.SQRT, 1f));
+		assertEquals(1d, evaluate(Functions.SQRT, 1f));
+	}
 
+	@Test
+	public void evaluateMathFunctions(){
 		assertEquals(1, evaluate(Functions.ABS, -1));
 		assertEquals(1f, evaluate(Functions.ABS, -1f));
 		assertEquals(1d, evaluate(Functions.ABS, -1d));
@@ -200,6 +211,12 @@ public class FunctionTest {
 	public void evaluateValueListFunctions(){
 		assertEquals(true, evaluate(Functions.IS_IN, "3", "1", "2", "3"));
 		assertEquals(true, evaluate(Functions.IS_NOT_IN, "0", "1", "2", "3"));
+
+		assertEquals(false, evaluate(Functions.IS_IN, null, "1", "2", "3"));
+		assertEquals(true, evaluate(Functions.IS_NOT_IN, null, "1", "2", "3"));
+
+		assertEquals(true, evaluate(Functions.IS_IN, null, "1", null, "3"));
+		assertEquals(false, evaluate(Functions.IS_NOT_IN, null, "1", null, "3"));
 
 		assertEquals(true, evaluate(Functions.IS_IN, 3, 1, 2, 3));
 		assertEquals(true, evaluate(Functions.IS_NOT_IN, 0, 1, 2, 3));
@@ -319,12 +336,12 @@ public class FunctionTest {
 
 	static
 	private void assertEquals(Object expected, FieldValue actual){
-		Assert.assertEquals(FieldValueUtil.create(null, null, expected), actual);
+		Assert.assertEquals(FieldValueUtil.create(expected), actual);
 	}
 
 	static
 	private void assertEquals(Number expected, FieldValue actual, double delta){
-		Assert.assertEquals(FieldValueUtil.create(null, OpType.CONTINUOUS, expected).asDouble(), actual.asDouble(), delta);
+		Assert.assertEquals(expected.doubleValue(), (actual.asNumber()).doubleValue(), delta);
 	}
 
 	static
@@ -334,6 +351,14 @@ public class FunctionTest {
 
 	static
 	private FieldValue evaluate(Function function, List<?> arguments){
-		return function.evaluate(FieldValueUtil.createAll(null, null, arguments));
+		com.google.common.base.Function<Object, FieldValue> argumentFunction = new com.google.common.base.Function<Object, FieldValue>(){
+
+			@Override
+			public FieldValue apply(Object value){
+				return FieldValueUtil.create(value);
+			}
+		};
+
+		return function.evaluate(Lists.transform(arguments, argumentFunction));
 	}
 }

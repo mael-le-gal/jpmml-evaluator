@@ -38,7 +38,7 @@ import org.jpmml.evaluator.Classification;
 import org.jpmml.evaluator.EvaluationContext;
 import org.jpmml.evaluator.ExpressionUtil;
 import org.jpmml.evaluator.FieldValue;
-import org.jpmml.evaluator.FieldValueUtil;
+import org.jpmml.evaluator.FieldValues;
 import org.jpmml.evaluator.InvalidAttributeException;
 import org.jpmml.evaluator.InvalidElementException;
 import org.jpmml.evaluator.InvalidElementListException;
@@ -86,7 +86,7 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 		switch(mathContext){
 			case FLOAT:
 			case DOUBLE:
-				valueFactory = getValueFactory();
+				valueFactory = ensureValueFactory();
 				break;
 			default:
 				throw new UnsupportedAttributeException(regressionModel, mathContext);
@@ -147,7 +147,7 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 			case CLOGLOG:
 			case LOGLOG:
 			case CAUCHIT:
-				RegressionModelUtil.normalizeRegressionResult(result, normalizationMethod);
+				RegressionModelUtil.normalizeRegressionResult(normalizationMethod, result);
 				break;
 			case SIMPLEMAX:
 				throw new InvalidAttributeException(regressionModel, normalizationMethod);
@@ -182,8 +182,8 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 			throw new InvalidElementListException(regressionTables);
 		}
 
-		List<String> targetCategories = FieldValueUtil.getTargetCategories(targetField);
-		if(targetCategories.size() > 0 && targetCategories.size() != regressionTables.size()){
+		List<String> targetCategories = targetField.getCategories();
+		if(targetCategories != null && targetCategories.size() != regressionTables.size()){
 			throw new InvalidElementListException(regressionTables);
 		}
 
@@ -195,7 +195,7 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 				throw new MissingAttributeException(regressionTable, PMMLAttributes.REGRESSIONTABLE_TARGETCATEGORY);
 			} // End if
 
-			if(targetCategories.size() > 0 && targetCategories.indexOf(targetCategory) < 0){
+			if(targetCategories != null && targetCategories.indexOf(targetCategory) < 0){
 				throw new InvalidAttributeException(regressionTable, PMMLAttributes.REGRESSIONTABLE_TARGETCATEGORY, targetCategory);
 			}
 
@@ -215,16 +215,16 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 				if((OpType.CATEGORICAL).equals(opType)){
 
 					if(values.size() == 2){
-						RegressionModelUtil.computeBinomialProbabilities(values, normalizationMethod);
+						RegressionModelUtil.computeBinomialProbabilities(normalizationMethod, values);
 					} else
 
 					{
-						RegressionModelUtil.computeMultinomialProbabilities(values, normalizationMethod);
+						RegressionModelUtil.computeMultinomialProbabilities(normalizationMethod, values);
 					}
 				} else
 
 				{
-					RegressionModelUtil.computeOrdinalProbabilities(values, normalizationMethod);
+					RegressionModelUtil.computeOrdinalProbabilities(normalizationMethod, values);
 				}
 				break;
 			case SIMPLEMAX:
@@ -233,11 +233,11 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 
 					// XXX: Non-standard behaviour
 					if((values.size() == 2 && isDefault(regressionTables.get(1)) && (RegressionModel.NormalizationMethod.SOFTMAX).equals(normalizationMethod))){
-						RegressionModelUtil.computeBinomialProbabilities(values, RegressionModel.NormalizationMethod.LOGIT);
+						RegressionModelUtil.computeBinomialProbabilities(RegressionModel.NormalizationMethod.LOGIT, values);
 					} else
 
 					{
-						RegressionModelUtil.computeMultinomialProbabilities(values, normalizationMethod);
+						RegressionModelUtil.computeMultinomialProbabilities(normalizationMethod, values);
 					}
 				} else
 
@@ -253,12 +253,12 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 				if((OpType.CATEGORICAL).equals(opType)){
 
 					if(values.size() == 2){
-						RegressionModelUtil.computeBinomialProbabilities(values, normalizationMethod);
+						RegressionModelUtil.computeBinomialProbabilities(normalizationMethod, values);
 					} else
 
 					// XXX: Non-standard behaviour
 					if(values.size() > 2 && (RegressionModel.NormalizationMethod.LOGIT).equals(normalizationMethod)){
-						RegressionModelUtil.computeMultinomialProbabilities(values, normalizationMethod);
+						RegressionModelUtil.computeMultinomialProbabilities(normalizationMethod, values);
 					} else
 
 					{
@@ -267,7 +267,7 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 				} else
 
 				{
-					RegressionModelUtil.computeOrdinalProbabilities(values, normalizationMethod);
+					RegressionModelUtil.computeOrdinalProbabilities(normalizationMethod, values);
 				}
 				break;
 			case EXP:
@@ -287,15 +287,15 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 		if(regressionTable.hasNumericPredictors()){
 			List<NumericPredictor> numericPredictors = regressionTable.getNumericPredictors();
 			for(NumericPredictor numericPredictor : numericPredictors){
-				FieldName name = numericPredictor.getName();
+				FieldName name = numericPredictor.getField();
 				if(name == null){
-					throw new MissingAttributeException(numericPredictor, PMMLAttributes.NUMERICPREDICTOR_NAME);
+					throw new MissingAttributeException(numericPredictor, PMMLAttributes.NUMERICPREDICTOR_FIELD);
 				}
 
 				FieldValue value = context.evaluate(name);
 
 				// "If the input value is missing, then the result evaluates to a missing value"
-				if(value == null){
+				if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 					return null;
 				}
 
@@ -317,9 +317,9 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 
 			List<CategoricalPredictor> categoricalPredictors = regressionTable.getCategoricalPredictors();
 			for(CategoricalPredictor categoricalPredictor : categoricalPredictors){
-				FieldName name = categoricalPredictor.getName();
+				FieldName name = categoricalPredictor.getField();
 				if(name == null){
-					throw new MissingAttributeException(categoricalPredictor, PMMLAttributes.CATEGORICALPREDICTOR_NAME);
+					throw new MissingAttributeException(categoricalPredictor, PMMLAttributes.CATEGORICALPREDICTOR_FIELD);
 				}
 
 				if(matchedName != null){
@@ -334,7 +334,7 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 				FieldValue value = context.evaluate(name);
 
 				// "If the input value is missing, then the categorical field is ignored"
-				if(value == null){
+				if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 					matchedName = name;
 
 					continue;
@@ -361,14 +361,14 @@ public class RegressionModelEvaluator extends ModelEvaluator<RegressionModel> {
 					FieldValue value = ExpressionUtil.evaluate(fieldRef, context);
 
 					// "If the input value is missing, then the result evaluates to a missing value"
-					if(value == null){
+					if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 						return null;
 					}
 
 					factors.add(value.asNumber());
 				}
 
-				result.add(predictorTerm.getCoefficient(), factors);
+				result.add(predictorTerm.getCoefficient(), factors.toArray(new Number[factors.size()]));
 			}
 		}
 

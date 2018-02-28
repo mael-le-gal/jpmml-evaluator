@@ -19,16 +19,18 @@
 package org.jpmml.evaluator.functions;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.dmg.pmml.DataType;
 import org.dmg.pmml.OpType;
 import org.jpmml.evaluator.FieldValue;
 import org.jpmml.evaluator.FieldValueUtil;
+import org.jpmml.evaluator.FieldValues;
 import org.jpmml.evaluator.TypeUtil;
 import org.jpmml.evaluator.UndefinedResultException;
 
 abstract
-public class ArithmeticFunction extends AbstractFunction {
+public class ArithmeticFunction extends AbstractNumericFunction {
 
 	public ArithmeticFunction(String name){
 		super(name);
@@ -39,17 +41,19 @@ public class ArithmeticFunction extends AbstractFunction {
 
 	@Override
 	public FieldValue evaluate(List<FieldValue> arguments){
-		checkArguments(arguments, 2, true);
+		checkFixedArityArguments(arguments, 2);
 
-		FieldValue left = arguments.get(0);
-		FieldValue right = arguments.get(1);
+		return evaluate(getOptionalArgument(arguments, 0), getOptionalArgument(arguments, 1));
+	}
+
+	private FieldValue evaluate(FieldValue left, FieldValue right){
 
 		// "If one of the input fields of a simple arithmetic function is a missing value, then the result evaluates to missing value"
-		if(left == null || right == null){
-			return null;
+		if(Objects.equals(FieldValues.MISSING_VALUE, left) || Objects.equals(FieldValues.MISSING_VALUE, right)){
+			return FieldValues.MISSING_VALUE;
 		}
 
-		DataType dataType = TypeUtil.getResultDataType(left.getDataType(), right.getDataType());
+		DataType dataType = TypeUtil.getCommonDataType(left.getDataType(), right.getDataType());
 
 		Number result;
 

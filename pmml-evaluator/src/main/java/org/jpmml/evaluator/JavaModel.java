@@ -34,8 +34,8 @@ import org.dmg.pmml.PMMLObject;
 import org.dmg.pmml.Targets;
 import org.dmg.pmml.Visitor;
 import org.dmg.pmml.VisitorAction;
-import org.jpmml.model.Property;
-import org.jpmml.schema.Extension;
+import org.jpmml.model.annotations.Extension;
+import org.jpmml.model.annotations.Property;
 
 @Extension
 abstract
@@ -69,7 +69,7 @@ public class JavaModel extends Model {
 	public JavaModel(){
 	}
 
-	public JavaModel(MiningFunction miningFunction, MiningSchema miningSchema){
+	public JavaModel(@Property("miningFunction") MiningFunction miningFunction, @Property("miningSchema") MiningSchema miningSchema){
 		setMiningFunction(miningFunction);
 		setMiningSchema(miningSchema);
 	}

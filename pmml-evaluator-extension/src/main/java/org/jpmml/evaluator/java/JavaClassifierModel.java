@@ -31,7 +31,7 @@ import org.jpmml.evaluator.OutputUtil;
 import org.jpmml.evaluator.TargetField;
 import org.jpmml.evaluator.TargetUtil;
 import org.jpmml.evaluator.ValueFactory;
-import org.jpmml.model.Property;
+import org.jpmml.model.annotations.Property;
 
 abstract
 public class JavaClassifierModel extends JavaModel {
@@ -40,7 +40,7 @@ public class JavaClassifierModel extends JavaModel {
 		super();
 	}
 
-	public JavaClassifierModel(MiningFunction miningFunction, MiningSchema miningSchema){
+	public JavaClassifierModel(@Property("miningFunction") MiningFunction miningFunction, @Property("miningSchema") MiningSchema miningSchema){
 		super(miningFunction, miningSchema);
 	}
 
@@ -82,7 +82,7 @@ public class JavaClassifierModel extends JavaModel {
 	protected Map<FieldName, ? extends Classification<?>> evaluateClassification(JavaModelEvaluationContext context){
 		JavaModelEvaluator modelEvaluator = context.getModelEvaluator();
 
-		ValueFactory<?> valueFactory = modelEvaluator.getValueFactory();
+		ValueFactory<?> valueFactory = modelEvaluator.ensureValueFactory();
 
 		TargetField targetField = modelEvaluator.getTargetField();
 

@@ -21,7 +21,7 @@ package org.jpmml.evaluator;
 import org.dmg.pmml.DataType;
 
 abstract
-public class Vote implements Computable, HasPrediction {
+public class Vote extends AbstractComputable implements HasPrediction {
 
 	private Object result = null;
 
@@ -44,20 +44,6 @@ public class Vote implements Computable, HasPrediction {
 
 	protected void setResult(Object result){
 		this.result = result;
-	}
-
-	@Override
-	public String toString(){
-		ToStringHelper helper = toStringHelper();
-
-		return helper.toString();
-	}
-
-	protected ToStringHelper toStringHelper(){
-		ToStringHelper helper = new ToStringHelper(this)
-			.add("result", getResult());
-
-		return helper;
 	}
 
 	@Override

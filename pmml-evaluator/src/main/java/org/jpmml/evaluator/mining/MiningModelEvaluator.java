@@ -59,7 +59,6 @@ import org.jpmml.evaluator.EntityUtil;
 import org.jpmml.evaluator.EvaluationException;
 import org.jpmml.evaluator.Evaluator;
 import org.jpmml.evaluator.FieldValue;
-import org.jpmml.evaluator.FieldValueUtil;
 import org.jpmml.evaluator.HasEntityRegistry;
 import org.jpmml.evaluator.InputField;
 import org.jpmml.evaluator.InvalidAttributeException;
@@ -88,8 +87,6 @@ import org.jpmml.evaluator.ValueUtil;
 import org.jpmml.evaluator.XPathUtil;
 
 public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements HasEntityRegistry<Segment> {
-
-	private ModelEvaluatorFactory modelEvaluatorFactory = null;
 
 	private ConcurrentMap<String, SegmentHandler> segmentHandlers = new ConcurrentHashMap<>();
 
@@ -133,10 +130,10 @@ public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements
 	}
 
 	@Override
-	protected void configure(ModelEvaluatorFactory modelEvaluatorFactory){
+	public void configure(ModelEvaluatorFactory modelEvaluatorFactory){
 		super.configure(modelEvaluatorFactory);
 
-		setModelEvaluatorFactory(modelEvaluatorFactory);
+		this.segmentHandlers.clear();
 	}
 
 	@Override
@@ -222,7 +219,7 @@ public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements
 		switch(mathContext){
 			case FLOAT:
 			case DOUBLE:
-				valueFactory = getValueFactory();
+				valueFactory = ensureValueFactory();
 				break;
 			default:
 				throw new UnsupportedAttributeException(miningModel, mathContext);
@@ -271,7 +268,7 @@ public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements
 			case WEIGHTED_MEDIAN:
 			case SUM:
 			case WEIGHTED_SUM:
-				result = MiningModelUtil.aggregateValues(valueFactory, segmentResults, multipleModelMethod);
+				result = MiningModelUtil.aggregateValues(valueFactory, multipleModelMethod, segmentResults);
 				break;
 			case MAJORITY_VOTE:
 			case WEIGHTED_MAJORITY_VOTE:
@@ -308,7 +305,7 @@ public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements
 			case MAJORITY_VOTE:
 			case WEIGHTED_MAJORITY_VOTE:
 				{
-					ValueMap<String, V> values = MiningModelUtil.aggregateVotes(valueFactory, segmentResults, multipleModelMethod);
+					ValueMap<String, V> values = MiningModelUtil.aggregateVotes(valueFactory, multipleModelMethod, segmentResults);
 
 					// Convert from votes to probabilities
 					ValueUtil.normalizeSimpleMax(values);
@@ -321,11 +318,9 @@ public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements
 			case MEDIAN:
 			case MAX:
 				{
-					DataField dataField = targetField.getDataField();
+					List<String> categories = targetField.getCategories();
 
-					List<String> categories = FieldValueUtil.getTargetCategories(dataField);
-
-					ValueMap<String, V> values = MiningModelUtil.aggregateProbabilities(valueFactory, segmentResults, categories, multipleModelMethod);
+					ValueMap<String, V> values = MiningModelUtil.aggregateProbabilities(valueFactory, multipleModelMethod, categories, segmentResults);
 
 					result = new ProbabilityDistribution<>(values);
 				}
@@ -363,7 +358,7 @@ public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements
 			case MAJORITY_VOTE:
 			case WEIGHTED_MAJORITY_VOTE:
 				{
-					ValueMap<String, V> values = MiningModelUtil.aggregateVotes(valueFactory, segmentResults, multipleModelMethod);
+					ValueMap<String, V> values = MiningModelUtil.aggregateVotes(valueFactory, multipleModelMethod, segmentResults);
 
 					result = new VoteDistribution<>(values);
 				}
@@ -511,9 +506,12 @@ public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements
 
 							context.putOutputField(outputField.getOutputField());
 
-							FieldValue value = segmentContext.getField(name);
-							if(value == null){
-								throw new MissingValueException(name, segment);
+							FieldValue value;
+
+							try {
+								value = segmentContext.lookup(name);
+							} catch(MissingValueException mve){
+								throw mve.ensureContext(segment);
 							}
 
 							context.declare(name, value);
@@ -667,23 +665,11 @@ public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements
 	}
 
 	private SegmentHandler createSegmentHandler(Model model){
-		ModelEvaluatorFactory modelEvaluatorFactory = getModelEvaluatorFactory();
-
-		if(modelEvaluatorFactory == null){
-			modelEvaluatorFactory = ModelEvaluatorFactory.newInstance();
-		}
+		ModelEvaluatorFactory modelEvaluatorFactory = ensureModelEvaluatorFactory();
 
 		ModelEvaluator<?> modelEvaluator = modelEvaluatorFactory.newModelEvaluator(getPMML(), model);
 
 		return new SegmentHandler(modelEvaluator);
-	}
-
-	public ModelEvaluatorFactory getModelEvaluatorFactory(){
-		return this.modelEvaluatorFactory;
-	}
-
-	private void setModelEvaluatorFactory(ModelEvaluatorFactory modelEvaluatorFactory){
-		this.modelEvaluatorFactory = modelEvaluatorFactory;
 	}
 
 	static
@@ -743,7 +729,7 @@ public class MiningModelEvaluator extends ModelEvaluator<MiningModel> implements
 
 			List<InputField> inputFields = modelEvaluator.getInputFields();
 			for(InputField inputField : inputFields){
-				Field field = inputField.getField();
+				Field<?> field = inputField.getField();
 
 				if(field instanceof DataField){
 					MiningField miningField = inputField.getMiningField();

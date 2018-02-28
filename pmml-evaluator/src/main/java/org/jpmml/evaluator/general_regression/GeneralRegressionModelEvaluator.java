@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import com.google.common.base.Function;
@@ -68,6 +69,7 @@ import org.jpmml.evaluator.Classification;
 import org.jpmml.evaluator.EvaluationContext;
 import org.jpmml.evaluator.FieldValue;
 import org.jpmml.evaluator.FieldValueUtil;
+import org.jpmml.evaluator.FieldValues;
 import org.jpmml.evaluator.HasParsedValueMapping;
 import org.jpmml.evaluator.InvalidAttributeException;
 import org.jpmml.evaluator.InvalidElementException;
@@ -157,7 +159,7 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 		switch(mathContext){
 			case FLOAT:
 			case DOUBLE:
-				valueFactory = getValueFactory();
+				valueFactory = ensureValueFactory();
 				break;
 			default:
 				throw new UnsupportedAttributeException(generalRegressionModel, mathContext);
@@ -680,7 +682,7 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 			case ODDSPOWER:
 			case POWER:
 			case PROBIT:
-				GeneralRegressionModelUtil.computeLink(value, distParameter, linkParameter, linkFunction);
+				GeneralRegressionModelUtil.computeLink(linkFunction, distParameter, linkParameter, value);
 				break;
 			default:
 				throw new UnsupportedAttributeException(generalRegressionModel, linkFunction);
@@ -713,7 +715,7 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 			case CLOGLOG:
 			case LOGLOG:
 			case CAUCHIT:
-				GeneralRegressionModelUtil.computeCumulativeLink(value, cumulativeLinkFunction);
+				GeneralRegressionModelUtil.computeCumulativeLink(cumulativeLinkFunction, value);
 				break;
 			default:
 				throw new UnsupportedAttributeException(generalRegressionModel, cumulativeLinkFunction);
@@ -789,8 +791,8 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 				throw new InvalidElementException(generalRegressionModel);
 		}
 
-		List<String> targetCategories = FieldValueUtil.getTargetCategories(targetField);
-		if(targetCategories.size() > 0 && targetCategories.size() < 2){
+		List<String> targetCategories = targetField.getCategories();
+		if(targetCategories == null || targetCategories.size() < 2){
 			throw new InvalidElementException(generalRegressionModel);
 		}
 
@@ -875,7 +877,7 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 	private FieldValue getVariable(FieldName name, EvaluationContext context){
 		FieldValue value = context.evaluate(name);
 
-		if(value == null){
+		if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 			throw new MissingValueException(name);
 		}
 
@@ -932,7 +934,7 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 
 		List<Predictor> predictors = predictorList.getPredictors();
 		for(Predictor predictor : predictors){
-			result.put(predictor.getName(), predictor);
+			result.put(predictor.getField(), predictor);
 		}
 
 		return result;
@@ -953,9 +955,9 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 
 				ppCells:
 				for(PPCell ppCell : ppCells){
-					FieldName name = ppCell.getPredictorName();
+					FieldName name = ppCell.getField();
 					if(name == null){
-						throw new MissingAttributeException(ppCell, PMMLAttributes.PPCELL_PREDICTORNAME);
+						throw new MissingAttributeException(ppCell, PMMLAttributes.PPCELL_FIELD);
 					}
 
 					Predictor factor = this.factors.get(name);
@@ -972,7 +974,7 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 						continue ppCells;
 					}
 
-					throw new InvalidAttributeException(ppCell, PMMLAttributes.PPCELL_PREDICTORNAME, name);
+					throw new InvalidAttributeException(ppCell, PMMLAttributes.PPCELL_FIELD, name);
 				}
 
 				return result;
@@ -1071,8 +1073,8 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 			for(int i = 0, max = factorHandlers.size(); i < max; i++){
 				FactorHandler factorHandler = factorHandlers.get(i);
 
-				FieldValue value = context.evaluate(factorHandler.getPredictorName());
-				if(value == null){
+				FieldValue value = context.evaluate(factorHandler.getField());
+				if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 					return null;
 				}
 
@@ -1087,8 +1089,8 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 			for(int i = 0, max = covariateHandlers.size(); i < max; i++){
 				CovariateHandler covariateHandler = covariateHandlers.get(i);
 
-				FieldValue value = context.evaluate(covariateHandler.getPredictorName());
-				if(value == null){
+				FieldValue value = context.evaluate(covariateHandler.getField());
+				if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 					return null;
 				}
 
@@ -1154,19 +1156,19 @@ public class GeneralRegressionModelEvaluator extends ModelEvaluator<GeneralRegre
 			private PredictorHandler(PPCell ppCell){
 				setPPCell(ppCell);
 
-				FieldName name = ppCell.getPredictorName();
+				FieldName name = ppCell.getField();
 				if(name == null){
-					throw new MissingAttributeException(ppCell, PMMLAttributes.PPCELL_PREDICTORNAME);
+					throw new MissingAttributeException(ppCell, PMMLAttributes.PPCELL_FIELD);
 				}
 			}
 
 			abstract
 			public <V extends Number> Value<V> updateProduct(Value<V> product, FieldValue value);
 
-			public FieldName getPredictorName(){
+			public FieldName getField(){
 				PPCell ppCell = getPPCell();
 
-				return ppCell.getPredictorName();
+				return ppCell.getField();
 			}
 
 			public PPCell getPPCell(){

@@ -61,7 +61,7 @@ public class ProbabilityAggregator<V extends Number> extends KeyValueAggregator<
 			this.hasProbabilities.add(hasProbability);
 		}
 
-		Set<String> categories = hasProbability.getCategoryValues();
+		Set<String> categories = hasProbability.getCategories();
 		for(String category : categories){
 			Double probability = hasProbability.getProbability(category);
 
@@ -85,7 +85,7 @@ public class ProbabilityAggregator<V extends Number> extends KeyValueAggregator<
 			this.hasProbabilities.add(hasProbability);
 		}
 
-		Set<String> categories = hasProbability.getCategoryValues();
+		Set<String> categories = hasProbability.getCategories();
 		for(String category : categories){
 			Double probability = hasProbability.getProbability(category);
 
@@ -261,7 +261,7 @@ public class ProbabilityAggregator<V extends Number> extends KeyValueAggregator<
 
 			ValueMap<String, V> result = new ValueMap<>();
 
-			Set<String> categories = hasProbability.getCategoryValues();
+			Set<String> categories = hasProbability.getCategories();
 			for(String category : categories){
 				Double probability = hasProbability.getProbability(category);
 
@@ -293,6 +293,10 @@ public class ProbabilityAggregator<V extends Number> extends KeyValueAggregator<
 	static
 	private <V extends Number> Map.Entry<String, Value<V>> getWinner(Map<String, Value<V>> values, Collection<String> categories){
 		Map.Entry<String, Value<V>> maxEntry = null;
+
+		if(categories == null){
+			categories = values.keySet();
+		}
 
 		for(String category : categories){
 			Value<V> value = values.get(category);

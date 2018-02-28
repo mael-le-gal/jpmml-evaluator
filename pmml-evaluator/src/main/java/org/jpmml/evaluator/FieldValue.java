@@ -45,13 +45,11 @@ import org.dmg.pmml.PMMLObject;
  * A field value representation that meets the requirements of PMML type system.
  * </p>
  *
- * <p>
  * Type information has two components to it:
  * <ul>
  *   <li>{@link #getOpType() Operational type}. Determines supported type equality and type comparison operations.</li>
  *   <li>{@link #getDataType() Data type}. Determines supported type conversions.</li>
  * </ul>
- * </p>
  *
  * <p>
  * A field value is created after a {@link Field field}.
@@ -116,9 +114,17 @@ public class FieldValue implements Comparable<FieldValue>, Serializable {
 			throw new MissingElementException(MissingElementException.formatMessage(XPathUtil.formatElement((Class)hasValueSet.getClass()) + "/" + XPathUtil.formatElement(Array.class)), (PMMLObject)hasValueSet);
 		}
 
-		List<String> content = ArrayUtil.getContent(array);
+		List<?> values = ArrayUtil.getContent(array);
 
-		return indexInStrings(content) > -1;
+		Predicate<Object> predicate = new Predicate<Object>(){
+
+			@Override
+			public boolean apply(Object value){
+				return equalsValue(value);
+			}
+		};
+
+		return Iterables.indexOf(values, predicate) > -1;
 	}
 
 	public boolean isIn(HasParsedValueSet<?> hasParsedValueSet){
@@ -150,18 +156,14 @@ public class FieldValue implements Comparable<FieldValue>, Serializable {
 	}
 
 	public boolean equalsString(String string){
-		Object value = parseValue(string);
+		Object value = TypeUtil.parse(getDataType(), string);
 
-		if(isScalar()){
-			return (getValue()).equals(value);
-		}
-
-		return TypeUtil.equals(getDataType(), getValue(), value);
+		return (getValue()).equals(value);
 	}
 
 	/**
 	 * <p>
-	 * A value-safe replacement for {@link #equals(FieldValue)}.
+	 * A value-safe replacement for {@link #equals(Object)}.
 	 * </p>
 	 */
 	public boolean equalsValue(FieldValue value){
@@ -170,28 +172,25 @@ public class FieldValue implements Comparable<FieldValue>, Serializable {
 			return (getValue()).equals(value.getValue());
 		}
 
-		DataType dataType = TypeUtil.getResultDataType(getDataType(), value.getDataType());
-
-		return TypeUtil.equals(dataType, getValue(), value.getValue());
+		return equalsValue(value.getValue());
 	}
 
-	public int indexInStrings(Iterable<String> strings){
-		Predicate<String> predicate = new Predicate<String>(){
+	private boolean equalsValue(Object value){
+		value = TypeUtil.parseOrCast(getDataType(), value);
 
-			@Override
-			public boolean apply(String string){
-				return equalsString(string);
-			}
-		};
-
-		return Iterables.indexOf(strings, predicate);
+		return (getValue()).equals(value);
 	}
 
-	public int indexInValues(Iterable<FieldValue> values){
+	public int indexIn(Iterable<FieldValue> values){
 		Predicate<FieldValue> predicate = new Predicate<FieldValue>(){
 
 			@Override
 			public boolean apply(FieldValue value){
+
+				if(Objects.equals(FieldValues.MISSING_VALUE, value)){
+					return false;
+				}
+
 				return equalsValue(value);
 			}
 		};
@@ -200,13 +199,9 @@ public class FieldValue implements Comparable<FieldValue>, Serializable {
 	}
 
 	public int compareToString(String string){
-		Object value = parseValue(string);
+		Object value = TypeUtil.parse(getDataType(), string);
 
-		if(isScalar()){
-			return ((Comparable)getValue()).compareTo(value);
-		}
-
-		return TypeUtil.compare(getDataType(), getValue(), value);
+		return ((Comparable)getValue()).compareTo(value);
 	}
 
 	/**
@@ -220,15 +215,13 @@ public class FieldValue implements Comparable<FieldValue>, Serializable {
 			return ((Comparable)getValue()).compareTo(value.getValue());
 		}
 
-		DataType dataType = TypeUtil.getResultDataType(getDataType(), value.getDataType());
-
-		return TypeUtil.compare(dataType, getValue(), value.getValue());
+		return compareToValue(value.getValue());
 	}
 
-	public Object parseValue(String string){
-		DataType dataType = getDataType();
+	private int compareToValue(Object value){
+		value = TypeUtil.parseOrCast(getDataType(), value);
 
-		return TypeUtil.parse(dataType, string);
+		return ((Comparable)getValue()).compareTo(value);
 	}
 
 	public <V> V getMapping(HasParsedValueMapping<V> hasParsedValueMapping){

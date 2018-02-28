@@ -58,13 +58,13 @@ public class PercentileFunction extends AbstractFunction {
 
 	@Override
 	public FieldValue evaluate(List<FieldValue> arguments){
-		checkArguments(arguments, 2);
+		checkFixedArityArguments(arguments, 2);
 
-		Collection<?> values = FieldValueUtil.getValue(Collection.class, arguments.get(0));
+		Collection<?> values = FieldValueUtil.getValue(Collection.class, getRequiredArgument(arguments, 0, "values"));
 
-		int percentile = (arguments.get(1)).asInteger();
+		int percentile = getRequiredArgument(arguments, 1, "percentile").asInteger();
 		if(percentile < 1 || percentile > 100){
-			throw new FunctionException(this, "Invalid percentile value " + percentile + ". Must be greater than 0 and equal or less than 100");
+			throw new FunctionException(this, "Invalid \'percentile\' value " + percentile + ". Must be greater than 0 and equal or less than 100");
 		}
 
 		Double result = evaluate(values, percentile);
@@ -77,9 +77,9 @@ public class PercentileFunction extends AbstractFunction {
 		DoubleVector doubleValues = new ComplexDoubleVector(values.size());
 
 		for(Object value : values){
-			Double doubleValue = (Double)TypeUtil.parseOrCast(DataType.DOUBLE, value);
+			Number number = (Number)TypeUtil.parseOrCast(DataType.DOUBLE, value);
 
-			doubleValues.add(doubleValue.doubleValue());
+			doubleValues.add(number.doubleValue());
 		}
 
 		return doubleValues.doublePercentile(percentile);

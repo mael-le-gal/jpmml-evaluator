@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -54,6 +55,7 @@ import org.dmg.pmml.DataField;
 import org.dmg.pmml.DataType;
 import org.dmg.pmml.DerivedField;
 import org.dmg.pmml.Distance;
+import org.dmg.pmml.Field;
 import org.dmg.pmml.FieldName;
 import org.dmg.pmml.InlineTable;
 import org.dmg.pmml.MathContext;
@@ -63,7 +65,6 @@ import org.dmg.pmml.MiningFunction;
 import org.dmg.pmml.OpType;
 import org.dmg.pmml.PMML;
 import org.dmg.pmml.Similarity;
-import org.dmg.pmml.TypeDefinitionField;
 import org.dmg.pmml.nearest_neighbor.InstanceField;
 import org.dmg.pmml.nearest_neighbor.InstanceFields;
 import org.dmg.pmml.nearest_neighbor.KNNInput;
@@ -77,6 +78,7 @@ import org.jpmml.evaluator.EvaluationContext;
 import org.jpmml.evaluator.ExpressionUtil;
 import org.jpmml.evaluator.FieldValue;
 import org.jpmml.evaluator.FieldValueUtil;
+import org.jpmml.evaluator.FieldValues;
 import org.jpmml.evaluator.InlineTableUtil;
 import org.jpmml.evaluator.InvalidAttributeException;
 import org.jpmml.evaluator.InvalidElementException;
@@ -179,7 +181,7 @@ public class NearestNeighborModelEvaluator extends ModelEvaluator<NearestNeighbo
 		switch(mathContext){
 			case FLOAT:
 			case DOUBLE:
-				valueFactory = getValueFactory();
+				valueFactory = ensureValueFactory();
 				break;
 			default:
 				throw new UnsupportedAttributeException(nearestNeighborModel, mathContext);
@@ -382,7 +384,7 @@ public class NearestNeighborModelEvaluator extends ModelEvaluator<NearestNeighbo
 
 		for(InstanceResult<V> instanceResult : instanceResults){
 			FieldValue value = table.get(instanceResult.getId(), name);
-			if(value == null){
+			if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 				throw new MissingValueException(name);
 			}
 
@@ -435,7 +437,7 @@ public class NearestNeighborModelEvaluator extends ModelEvaluator<NearestNeighbo
 
 		for(InstanceResult<V> instanceResult : instanceResults){
 			FieldValue value = table.get(instanceResult.getId(), name);
-			if(value == null){
+			if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 				throw new MissingValueException(name);
 			}
 
@@ -497,7 +499,7 @@ public class NearestNeighborModelEvaluator extends ModelEvaluator<NearestNeighbo
 			@Override
 			public String apply(Integer row){
 				FieldValue value = table.get(row, name);
-				if(value == null){
+				if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 					throw new MissingValueException(name);
 				}
 
@@ -595,7 +597,7 @@ public class NearestNeighborModelEvaluator extends ModelEvaluator<NearestNeighbo
 				continue;
 			}
 
-			TypeDefinitionField field = modelEvaluator.resolveField(name);
+			Field<?> field = modelEvaluator.resolveField(name);
 			if(field == null){
 				throw new MissingFieldException(name, instanceField);
 			} // End if

@@ -27,7 +27,7 @@ import org.jpmml.evaluator.FieldValueUtil;
 import org.jpmml.evaluator.NaNResultException;
 
 abstract
-public class TrigonometricFunction extends AbstractFunction {
+public class TrigonometricFunction extends AbstractNumericFunction {
 
 	public TrigonometricFunction(String name){
 		super(name);
@@ -38,10 +38,10 @@ public class TrigonometricFunction extends AbstractFunction {
 
 	@Override
 	public FieldValue evaluate(List<FieldValue> arguments){
-		checkArguments(arguments, 1);
+		checkFixedArityArguments(arguments, 1);
 
 		// Angle in radians
-		Number angle = (arguments.get(0)).asNumber();
+		Number angle = getRequiredArgument(arguments, 0, "x").asNumber();
 
 		Double result = evaluate(angle);
 		if(result.isNaN()){

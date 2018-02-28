@@ -53,15 +53,23 @@ public class EvaluationContext {
 		}
 	}
 
+	public FieldValue lookup(FieldName name){
+		Map<FieldName, FieldValue> fields = getFields();
+
+		FieldValue value = fields.get(name);
+		if(value != null || (value == null && fields.containsKey(name))){
+			return value;
+		}
+
+		throw new MissingFieldException(name);
+	}
+
 	public FieldValue evaluate(FieldName name){
 		Map<FieldName, FieldValue> fields = getFields();
 
-		if(fields.size() > 0){
-			FieldValue value = fields.get(name);
-
-			if((value != null) || (value == null && fields.containsKey(name))){
-				return value;
-			}
+		FieldValue value = fields.get(name);
+		if(value != null || (value == null && fields.containsKey(name))){
+			return value;
 		}
 
 		return resolve(name);
@@ -69,12 +77,6 @@ public class EvaluationContext {
 
 	protected FieldValue resolve(FieldName name){
 		throw new MissingFieldException(name);
-	}
-
-	public FieldValue getField(FieldName name){
-		Map<FieldName, FieldValue> fields = getFields();
-
-		return fields.get(name);
 	}
 
 	public FieldValue declare(FieldName name, Object value){

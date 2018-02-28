@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.cache.CacheLoader;
@@ -34,16 +35,16 @@ import org.dmg.pmml.DataField;
 import org.dmg.pmml.DerivedField;
 import org.dmg.pmml.Entity;
 import org.dmg.pmml.Expression;
+import org.dmg.pmml.Field;
 import org.dmg.pmml.FieldName;
 import org.dmg.pmml.FieldRef;
-import org.dmg.pmml.HasField;
+import org.dmg.pmml.HasFieldReference;
 import org.dmg.pmml.MathContext;
 import org.dmg.pmml.MiningFunction;
 import org.dmg.pmml.NormContinuous;
 import org.dmg.pmml.NormDiscrete;
 import org.dmg.pmml.PMML;
 import org.dmg.pmml.PMMLObject;
-import org.dmg.pmml.TypeDefinitionField;
 import org.dmg.pmml.neural_network.Connection;
 import org.dmg.pmml.neural_network.NeuralInput;
 import org.dmg.pmml.neural_network.NeuralInputs;
@@ -58,6 +59,7 @@ import org.jpmml.evaluator.EntityUtil;
 import org.jpmml.evaluator.EvaluationContext;
 import org.jpmml.evaluator.ExpressionUtil;
 import org.jpmml.evaluator.FieldValue;
+import org.jpmml.evaluator.FieldValues;
 import org.jpmml.evaluator.HasEntityRegistry;
 import org.jpmml.evaluator.InvalidAttributeException;
 import org.jpmml.evaluator.InvalidElementException;
@@ -144,7 +146,7 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 		switch(mathContext){
 			case FLOAT:
 			case DOUBLE:
-				valueFactory = getValueFactory();
+				valueFactory = ensureValueFactory();
 				break;
 			default:
 				throw new UnsupportedAttributeException(neuralNetwork, mathContext);
@@ -366,7 +368,7 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 				throw new MissingAttributeException(fieldRef, PMMLAttributes.FIELDREF_FIELD);
 			}
 
-			TypeDefinitionField field = resolveField(name);
+			Field<?> field = resolveField(name);
 			if(field == null){
 				throw new MissingFieldException(name, fieldRef);
 			} // End if
@@ -406,7 +408,7 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 			}
 
 			FieldValue value = ExpressionUtil.evaluateTypedExpressionContainer(derivedField, context);
-			if(value == null){
+			if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 				return null;
 			}
 
@@ -504,7 +506,7 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 					case ELLIOTT:
 					case ARCTAN:
 					case RECTIFIER:
-						NeuralNetworkUtil.activateNeuronOutput(output, threshold, activationFunction);
+						NeuralNetworkUtil.activateNeuronOutput(activationFunction, threshold, output);
 						break;
 					default:
 						throw new UnsupportedAttributeException(locatable, activationFunction);
@@ -528,7 +530,7 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 				case NONE:
 				case SIMPLEMAX:
 				case SOFTMAX:
-					NeuralNetworkUtil.normalizeNeuralLayerOutputs(outputs, normalizationMethod);
+					NeuralNetworkUtil.normalizeNeuralLayerOutputs(normalizationMethod, outputs);
 					break;
 				default:
 					throw new UnsupportedAttributeException(locatable, normalizationMethod);
@@ -558,12 +560,12 @@ public class NeuralNetworkEvaluator extends ModelEvaluator<NeuralNetwork> implem
 
 			Expression expression = getOutputExpression(neuralOutput);
 
-			if(expression instanceof HasField){
-				HasField<?> hasField = (HasField<?>)expression;
+			if(expression instanceof HasFieldReference){
+				HasFieldReference<?> hasFieldReference = (HasFieldReference<?>)expression;
 
-				name = hasField.getField();
+				name = hasFieldReference.getField();
 				if(name == null){
-					throw new MissingAttributeException(MissingAttributeException.formatMessage(XPathUtil.formatElement((Class)hasField.getClass()) + "@field"), expression);
+					throw new MissingAttributeException(MissingAttributeException.formatMessage(XPathUtil.formatElement((Class)hasFieldReference.getClass()) + "@field"), expression);
 				}
 			} else
 

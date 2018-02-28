@@ -31,7 +31,7 @@ import org.dmg.pmml.nearest_neighbor.NearestNeighborModel;
  *
  * <p>
  * Classification is a supervised learning task.
- * The set of all categories is defined by the valid values of the {@link Evaluator#getTargetField() target field}.
+ * The set of all categories is defined by the range of categories of the target field.
  * </p>
  *
  * <p>
@@ -40,6 +40,8 @@ import org.dmg.pmml.nearest_neighbor.NearestNeighborModel;
  * For {@link ClusteringModel clustering models} this includes all {@link Cluster clusters}.
  * For {@link NearestNeighborModel k-nearest neighbor models} this includes <em>k</em> nearest training instances.
  * </p>
+ *
+ * @see TargetField#getCategories()
  */
 public interface CategoricalResultFeature extends ResultFeature {
 
@@ -52,5 +54,5 @@ public interface CategoricalResultFeature extends ResultFeature {
 	 * The set of known categories either equals the set of all categories, or is a proper subset of it.
 	 * </p>
 	 */
-	Set<String> getCategoryValues();
+	Set<String> getCategories();
 }

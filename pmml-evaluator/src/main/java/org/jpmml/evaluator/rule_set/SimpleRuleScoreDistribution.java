@@ -47,7 +47,7 @@ public class SimpleRuleScoreDistribution<V extends Number> extends EntityClassif
 				throw new MissingAttributeException(simpleRule, PMMLAttributes.SIMPLERULE_SCORE);
 			}
 
-			Object result = TypeUtil.parseOrCast(dataType, score);
+			Object result = TypeUtil.parse(dataType, score);
 
 			super.setResult(result);
 
@@ -58,7 +58,7 @@ public class SimpleRuleScoreDistribution<V extends Number> extends EntityClassif
 	}
 
 	@Override
-	public Set<String> getCategoryValues(){
+	public Set<String> getCategories(){
 		return keySet();
 	}
 

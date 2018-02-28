@@ -68,18 +68,18 @@ JPMML-Evaluator is fast and memory efficient. It can deliver one million scoring
 
 JPMML-Evaluator library JAR files (together with accompanying Java source and Javadocs JAR files) are released via [Maven Central Repository](http://repo1.maven.org/maven2/org/jpmml/).
 
-The current version is **1.3.11** (29 January, 2018).
+The current version is **1.4.0** (18 February, 2018).
 
 ```xml
 <dependency>
 	<groupId>org.jpmml</groupId>
 	<artifactId>pmml-evaluator</artifactId>
-	<version>1.3.11</version>
+	<version>1.4.0</version>
 </dependency>
 <dependency>
 	<groupId>org.jpmml</groupId>
 	<artifactId>pmml-evaluator-extension</artifactId>
-	<version>1.3.11</version>
+	<version>1.4.0</version>
 </dependency>
 ```
 
@@ -98,31 +98,45 @@ try(InputStream is = ...){
 }
 ```
 
-If the model type is known, then it is possible to instantiate the corresponding subclass of `org.jpmml.evaluator.ModelEvaluator` directly:
-```java
-PMML pmml = ...;
+The newly loaded `PMML` instance should tailored by applying appropriate `org.dmg.pmml.Visitor` implementation classes to it:
+* `org.jpmml.model.visitors.LocatorTransformer`. Transforms SAX Locator information to Java serializable representation. Recommended for development and testing environments.
+* `org.jpmml.model.visitors.LocatorNullifier`. Removes SAX Locator information. Recommended for production environments.
+* `org.jpmml.model.visitors.<Type>Interner`. Replaces all occurrences of the same Java value with the singleton value.
+* `org.jpmml.evaluator.visitors.<Element>Optimizer`. Pre-parses PMML element.
+* `org.jpmml.evaluator.visitors.<Element>Interner`. Replaces all occurrences of the same PMML element with the singleton element.
 
-ModelEvaluator<TreeModel> modelEvaluator = new TreeModelEvaluator(pmml);
+Removing SAX Locator information (reduces memory consumption up to 25%):
+```java
+Visitor visitor = new org.jpmml.model.visitors.LocatorNullifier();
+visitor.applyTo(pmml);
 ```
 
-Otherwise, if the model type is unknown, then the model evaluator instantiation work should be delegated to an instance of class `org.jpmml.evaluator.ModelEvaluatorFactory`:
-```java
-PMML pmml = ...;
+The PMML standard defines large number of model types.
+The evaluation logic for each model type is encapsulated into a corresponding `org.jpmml.evaluator.ModelEvaluator` subclass.
 
+Even though `ModelEvaluator` subclasses can be created directly, the recommended approach is to follow the factory design pattern as implemented by the `org.jpmml.evaluator.ModelEvaluatorFactory` factory class.
+
+Obtaining and configuring a `ModelEvaluatorFactory` instance:
+```java
 ModelEvaluatorFactory modelEvaluatorFactory = ModelEvaluatorFactory.newInstance();
- 
-ModelEvaluator<?> modelEvaluator = modelEvaluatorFactory.newModelEvaluator(pmml);
+
+// Activate the generation of MathML prediction reports
+ValueFactoryFactory valueFactoryFactory = ReportingValueFactoryFactory.newInstance();
+modelEvaluatorFactory.setValueFactoryFactory(valueFactoryFactory);
+```
+
+The model evaluator factory selects the first model from the `PMML` instance, and creates and configures a corresponding `ModelEvaluator` instance.
+However, in order to promote loose coupling, it is advisable to cast the result to a much simplified `org.jpmml.evaluator.Evaluator` instance.
+
+Obtaining an `Evaluator` instance for the `PMML` instance:
+```java
+Evaluator evaluator = (Evaluator)modelEvaluatorFactory.newModelEvaluator(pmml);
 ```
 
 Model evaluator classes follow functional programming principles and are completely thread safe.
 
 Model evaluator instances are fairly lightweight, which makes them cheap to create and destroy.
-Nevertheless, long-running applications should maintain a one-to-one mapping between `PMML` and `ModelEvaluator` instances for better performance.
-
-It is advisable for application code to work against the `org.jpmml.evaluator.Evaluator` interface:
-```java
-Evaluator evaluator = (Evaluator)modelEvaluator;
-```
+Nevertheless, long-running applications should maintain a one-to-one mapping between `PMML` and `Evaluator` instances for better performance.
 
 ### Querying the "data schema" of models
 
@@ -140,11 +154,11 @@ for(InputField inputField : inputFields){
 
 	switch(opType){
 		case CONTINUOUS:
-			RangeSet<Double> validArgumentRanges = FieldValueUtil.getValidRanges(pmmlDataField);
+			RangeSet<Double> validArgumentRanges = inputField.getContinuousDomain();
 			break;
 		case CATEGORICAL:
 		case ORDINAL:
-			List<Value> validArgumentValues = FieldValueUtil.getValidValues(pmmlDataField);
+			List<?> validArgumentValues = inputField.getDiscreteDomain();
 			break;
 		default:
 			break;
@@ -168,7 +182,10 @@ for(TargetField targetField : targetFields){
 			break;
 		case CATEGORICAL:
 		case ORDINAL:
-			List<Value> validResultValues = FieldValueUtil.getValidValues(pmmlDataField);
+			List<String> categories = targetField.getCategories();
+			for(String category : categories){
+				Object validResultValue = TypeUtil.parse(dataType, category);
+			}
 			break;
 		default:
 			break;
@@ -194,10 +211,20 @@ for(OutputField outputField : outputFields){
 
 ### Evaluating models
 
-The PMML scoring operation must be invoked with valid arguments.
-Otherwise, the behaviour of the model evaluator class is unspecified.
+A model may contain verification data, which is a small but representative set of data records (inputs plus expected outputs) for ensuring that the model evaluator is behaving correctly in this deployment configuration (JPMML-Evaluator version, Java/JVM version and vendor etc. variables).
+The model evaluator should be verified once, before putting it into actual use.
 
-Preparing the argument data record:
+Performing the self-check:
+```java
+evaluator.verify();
+```
+
+During scoring, the application code should iterate over data records (eg. rows of a table), and apply the following encode-evaluate-decode sequence of operations to each one of them.
+
+The processing of the first data record will be significantly slower than the processing of all subsequent data records, because the model evaluator needs to lookup, validate and pre-parse model content.
+If the model contains verification data, then this warm-up cost is borne during the self-check.
+
+Preparing the argument map:
 ```java
 Map<FieldName, FieldValue> arguments = new LinkedHashMap<>();
 
@@ -220,7 +247,7 @@ Performing the evaluation:
 Map<FieldName, ?> results = evaluator.evaluate(arguments);
 ```
 
-Extracting primary results from the result data record:
+Extracting primary results from the result map:
 ```
 List<TargetField> targetFields = evaluator.getTargetFields();
 for(TargetField targetField : targetFields){
@@ -256,7 +283,7 @@ if(targetFieldValue instanceof HasEntityId){
 }
 ```
 
-Extracting secondary results from the result data record:
+Extracting secondary results from the result map:
 ```
 List<OutputField> outputFields = evaluator.getOutputFields();
 for(OutputField outputField : outputFields){
@@ -278,9 +305,9 @@ mvn clean install
 ```
 
 The resulting uber-JAR file `target/example-1.4-SNAPSHOT.jar` contains the following command-line applications:
-* `org.jpmml.evaluator.EvaluationExample` [(source)](https://github.com/jpmml/jpmml-evaluator/blob/master/pmml-evaluator-example/src/main/java/org/jpmml/evaluator/EvaluationExample.java). Evaluates a PMML model with data. The predictions are stored.
-* `org.jpmml.evaluator.TestingExample`. Evaluates a PMML model with data. The predictions are verified against expected predictions data.
-* `org.jpmml.evaluator.EnhancementExample`. Enhances a PMML model with a ModelVerification element.
+* `org.jpmml.evaluator.EvaluationExample` [(source)](https://github.com/jpmml/jpmml-evaluator/blob/master/pmml-evaluator-example/src/main/java/org/jpmml/evaluator/EvaluationExample.java).
+* `org.jpmml.evaluator.TestingExample` [(source)](https://github.com/jpmml/jpmml-evaluator/blob/master/pmml-evaluator-example/src/main/java/org/jpmml/evaluator/TestingExample.java).
+* `org.jpmml.evaluator.EnhancementExample`.
 
 Evaluating model `model.pmml` with data records from `input.csv`. The predictions are stored to `output.csv`:
 ```
@@ -290,6 +317,11 @@ java -cp target/example-1.4-SNAPSHOT.jar org.jpmml.evaluator.EvaluationExample -
 Evaluating model `model.pmml` with data records from `input.csv`. The predictions are verified against data records from `expected-output.csv`:
 ```
 java -cp target/example-1.4-SNAPSHOT.jar org.jpmml.evaluator.TestingExample --model model.pmml --input input.csv --expected-output expected-output.csv
+```
+
+Enhancing model `model.pmml` with verification data records from `input_expected-output.csv`:
+```
+java -cp target/example-1.4-SNAPSHOT.jar org.jpmml.evaluator.EnhancementExample --model model.pmml --verification input_expected_output.csv
 ```
 
 Getting help:

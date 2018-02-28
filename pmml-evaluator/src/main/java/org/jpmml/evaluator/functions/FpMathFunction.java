@@ -18,17 +18,33 @@
  */
 package org.jpmml.evaluator.functions;
 
+import java.util.List;
+
 import org.dmg.pmml.DataType;
+import org.dmg.pmml.OpType;
+import org.jpmml.evaluator.FieldValue;
+import org.jpmml.evaluator.FieldValueUtil;
 
 abstract
-public class FpMathFunction extends MathFunction {
+public class FpMathFunction extends AbstractNumericFunction {
 
 	public FpMathFunction(String name){
 		super(name);
 	}
 
+	abstract
+	public Double evaluate(Number value);
+
 	@Override
-	public DataType getResultType(DataType dataType){
-		return integerToDouble(dataType);
+	public FieldValue evaluate(List<FieldValue> arguments){
+		checkFixedArityArguments(arguments, 1);
+
+		return evaluate(getRequiredArgument(arguments, 0, "x"));
+	}
+
+	private FieldValue evaluate(FieldValue value){
+		Number result = evaluate(value.asNumber());
+
+		return FieldValueUtil.create(DataType.DOUBLE, OpType.CONTINUOUS, result);
 	}
 }

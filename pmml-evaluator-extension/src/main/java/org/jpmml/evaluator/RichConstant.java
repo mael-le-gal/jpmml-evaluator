@@ -23,7 +23,6 @@ import javax.xml.bind.annotation.XmlTransient;
 
 import org.dmg.pmml.Constant;
 import org.dmg.pmml.DataType;
-import org.dmg.pmml.FieldName;
 import org.dmg.pmml.OpType;
 import org.jpmml.model.ReflectionUtil;
 
@@ -44,8 +43,16 @@ public class RichConstant extends Constant implements HasParsedValue<RichConstan
 	}
 
 	@Override
-	public FieldName getField(){
-		throw new UnsupportedOperationException();
+	public DataType getDataType(){
+		DataType dataType = super.getDataType();
+
+		if(dataType == null){
+			dataType = TypeUtil.getConstantDataType(getValue());
+
+			setDataType(dataType);
+		}
+
+		return dataType;
 	}
 
 	@Override
@@ -61,12 +68,10 @@ public class RichConstant extends Constant implements HasParsedValue<RichConstan
 	@Override
 	public FieldValue getValue(DataType dataType, OpType opType){
 
-		if((dataType != null) || (opType != null)){
-			throw new IllegalArgumentException();
-		} // End if
-
 		if(this.parsedValue == null){
-			this.parsedValue = FieldValueUtil.create(ExpressionUtil.getConstantDataType(this), null, getValue());
+			String value = getValue();
+
+			this.parsedValue = parse(dataType, opType, value);
 		}
 
 		return this.parsedValue;

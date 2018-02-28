@@ -27,13 +27,11 @@ package org.jpmml.evaluator;
  * Affinity represents a degree of attraction between the sample and a particular category.
  * </p>
  *
- * <p>
  * PMML deals with two kinds of affinities:
  * <ul>
  *   <li>Distance between two points in an n-dimensional feature space. Smaller distance values indicate more optimal fit.</li>
  *   <li>Similarity between two feature vectors. Greater similarity values indicate more optimal fit.</li>
  * </ul>
- * </p>
  *
  * @see org.dmg.pmml.ResultFeature#AFFINITY
  */
@@ -47,12 +45,12 @@ public interface HasAffinity extends CategoricalResultFeature {
 	 * @return An affinity in the range from 0.0 to positive infinity.
 	 * The affinity of an unknown category is the least optimal value in the range of valid values (ie. {@link Double#POSITIVE_INFINITY} for distance measures and 0.0 for similarity measures).
 	 *
-	 * @see #getCategoryValues()
+	 * @see #getCategories()
 	 */
 	Double getAffinity(String category);
 
 	/**
-	 * @see #getCategoryValues()
+	 * @see #getCategories()
 	 */
 	Report getAffinityReport(String category);
 }

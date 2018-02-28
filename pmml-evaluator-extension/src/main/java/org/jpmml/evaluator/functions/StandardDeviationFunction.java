@@ -26,7 +26,6 @@ import org.dmg.pmml.DataType;
 import org.dmg.pmml.OpType;
 import org.jpmml.evaluator.FieldValue;
 import org.jpmml.evaluator.FieldValueUtil;
-import org.jpmml.evaluator.FunctionException;
 import org.jpmml.evaluator.TypeUtil;
 
 /**
@@ -56,20 +55,13 @@ public class StandardDeviationFunction extends AbstractFunction {
 
 	@Override
 	public FieldValue evaluate(List<FieldValue> arguments){
+		checkVariableArityArguments(arguments, 1, 2);
 
-		if(arguments.size() < 1 || arguments.size() > 2){
-			throw new FunctionException(this, "Expected 1 or 2 arguments, got " + arguments.size() + " arguments");
-		} // End if
-
-		if(arguments.contains(null)){
-			throw new FunctionException(this, "Missing arguments");
-		}
-
-		Collection<?> values = FieldValueUtil.getValue(Collection.class, arguments.get(0));
+		Collection<?> values = FieldValueUtil.getValue(Collection.class, getRequiredArgument(arguments, 0, "values"));
 
 		Boolean biasCorrected = Boolean.FALSE;
 		if(arguments.size() > 1){
-			biasCorrected = (arguments.get(1)).asBoolean();
+			biasCorrected = getRequiredArgument(arguments, 1, "biasCorrected").asBoolean();
 		}
 
 		Double result = evaluate(values, biasCorrected);
@@ -83,9 +75,9 @@ public class StandardDeviationFunction extends AbstractFunction {
 		statistic.setBiasCorrected(biasCorrected);
 
 		for(Object value : values){
-			Double doubleValue = (Double)TypeUtil.parseOrCast(DataType.DOUBLE, value);
+			Number number = (Number)TypeUtil.parseOrCast(DataType.DOUBLE, value);
 
-			statistic.increment(doubleValue);
+			statistic.increment(number.doubleValue());
 		}
 
 		return statistic.getResult();

@@ -18,23 +18,27 @@
  */
 package org.jpmml.evaluator;
 
+import java.util.List;
 import java.util.Objects;
 
+import com.google.common.collect.RangeSet;
 import org.dmg.pmml.DataField;
 import org.dmg.pmml.DataType;
 import org.dmg.pmml.Field;
 import org.dmg.pmml.FieldName;
+import org.dmg.pmml.HasContinuousDomain;
+import org.dmg.pmml.HasDiscreteDomain;
 import org.dmg.pmml.MiningField;
 import org.dmg.pmml.OpType;
 
 public class InputField extends ModelField {
 
-	private Field field = null;
+	private Field<?> field = null;
 
 	private MiningField miningField = null;
 
 
-	public InputField(Field field, MiningField miningField){
+	public InputField(Field<?> field, MiningField miningField){
 		setField(Objects.requireNonNull(field));
 		setMiningField(Objects.requireNonNull(miningField));
 
@@ -66,14 +70,14 @@ public class InputField extends ModelField {
 
 	@Override
 	public FieldName getName(){
-		Field field = getField();
+		Field<?> field = getField();
 
 		return field.getName();
 	}
 
 	@Override
 	public DataType getDataType(){
-		Field field = getField();
+		Field<?> field = getField();
 
 		return field.getDataType();
 	}
@@ -84,14 +88,73 @@ public class InputField extends ModelField {
 	}
 
 	/**
+	 * <p>
+	 * Returns the domain of valid values for this continuous field.
+	 * If specified, then all input values that are contained in this set shall be considered valid, and all others invalid.
+	 * If not specified, then all input values shall be considered valid.
+	 * </p>
+	 *
+	 * @return a non-empty set, or <code>null</code>.
+	 *
+	 * @see #getOpType()
+	 */
+	public RangeSet<Double> getContinuousDomain(){
+		Field<?> field = getField();
+
+		if(field instanceof HasContinuousDomain){
+			RangeSet<Double> validRanges = FieldUtil.getValidRanges((Field & HasContinuousDomain)field);
+
+			if(validRanges != null && !validRanges.isEmpty()){
+				return validRanges;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * <p>
+	 * Returns the domain of valid values for this categorical or ordinal field.
+	 * If specified, then all input values that are contained in this list shall be considered valid, and all others invalid.
+	 * In not specified, then all input values shall be considered valid.
+	 * </p>
+	 *
+	 * <p>
+	 * List elements are all valid values in PMML representation.
+	 * For example, if the data type of this field is {@link DataType#INTEGER}, then all list elements shall be {@link Integer}.
+	 * </p>
+	 *
+	 * @return a non-empty list, or <code>null</code>.
+	 *
+	 * @see #getDataType()
+	 * @see #getOpType()
+	 *
+	 * @see TypeUtil#parse(DataType, String)
+	 * @see TypeUtil#parseOrCast(DataType, Object)
+	 */
+	public List<?> getDiscreteDomain(){
+		Field<?> field = getField();
+
+		if(field instanceof HasDiscreteDomain){
+			List<?> validValues = FieldUtil.getValidValues((Field & HasDiscreteDomain)field);
+
+			if(validValues != null && !validValues.isEmpty()){
+				return validValues;
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * @return the backing {@link Field} element.
 	 * For top-level models, this is always the {@link DataField} element.
 	 */
-	public Field getField(){
+	public Field<?> getField(){
 		return this.field;
 	}
 
-	private void setField(Field field){
+	private void setField(Field<?> field){
 		this.field = field;
 	}
 

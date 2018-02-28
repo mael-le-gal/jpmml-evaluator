@@ -19,18 +19,18 @@
 package org.jpmml.evaluator.functions;
 
 import java.util.List;
+import java.util.Objects;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import org.apache.commons.math3.stat.descriptive.StorelessUnivariateStatistic;
 import org.dmg.pmml.DataType;
 import org.dmg.pmml.OpType;
 import org.jpmml.evaluator.FieldValue;
 import org.jpmml.evaluator.FieldValueUtil;
+import org.jpmml.evaluator.FieldValues;
 import org.jpmml.evaluator.TypeUtil;
 
 abstract
-public class AggregateFunction extends AbstractFunction {
+public class AggregateFunction extends AbstractNumericFunction {
 
 	public AggregateFunction(String name){
 		super(name);
@@ -39,23 +39,24 @@ public class AggregateFunction extends AbstractFunction {
 	abstract
 	public StorelessUnivariateStatistic createStatistic();
 
-	public DataType getResultType(DataType dataType){
-		return dataType;
-	}
-
 	@Override
 	public FieldValue evaluate(List<FieldValue> arguments){
 		StorelessUnivariateStatistic statistic = createStatistic();
 
 		DataType dataType = null;
 
-		// "Missing values in the input to an aggregate function are simply ignored"
-		Iterable<FieldValue> values = Iterables.filter(arguments, Predicates.notNull());
-		for(FieldValue value : values){
+		for(int i = 0; i < arguments.size(); i++){
+			FieldValue value = getOptionalArgument(arguments, i);
+
+			// "Missing values in the input to an aggregate function are simply ignored"
+			if(Objects.equals(FieldValues.MISSING_VALUE, value)){
+				continue;
+			}
+
 			statistic.increment((value.asNumber()).doubleValue());
 
 			if(dataType != null){
-				dataType = TypeUtil.getResultDataType(dataType, value.getDataType());
+				dataType = TypeUtil.getCommonDataType(dataType, value.getDataType());
 			} else
 
 			{
@@ -65,11 +66,15 @@ public class AggregateFunction extends AbstractFunction {
 
 		// "If all inputs are missing, then the result evaluates to a missing value"
 		if(statistic.getN() == 0){
-			return null;
+			return FieldValues.MISSING_VALUE;
 		}
 
 		Double result = statistic.getResult();
 
-		return FieldValueUtil.create(getResultType(dataType), OpType.CONTINUOUS, result);
+		return FieldValueUtil.create(getResultDataType(dataType), OpType.CONTINUOUS, result);
+	}
+
+	protected DataType getResultDataType(DataType dataType){
+		return dataType;
 	}
 }

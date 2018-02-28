@@ -66,6 +66,7 @@ import org.jpmml.evaluator.EvaluationContext;
 import org.jpmml.evaluator.ExpressionUtil;
 import org.jpmml.evaluator.FieldValue;
 import org.jpmml.evaluator.FieldValueUtil;
+import org.jpmml.evaluator.FieldValues;
 import org.jpmml.evaluator.HasParsedValueMapping;
 import org.jpmml.evaluator.InvalidAttributeException;
 import org.jpmml.evaluator.MisplacedElementException;
@@ -140,7 +141,7 @@ public class NaiveBayesModelEvaluator extends ModelEvaluator<NaiveBayesModel> {
 		MathContext mathContext = naiveBayesModel.getMathContext();
 		switch(mathContext){
 			case DOUBLE:
-				valueFactory = (ValueFactory)getValueFactory();
+				valueFactory = (ValueFactory)ensureValueFactory();
 				break;
 			default:
 				throw new UnsupportedAttributeException(naiveBayesModel, mathContext);
@@ -194,15 +195,15 @@ public class NaiveBayesModelEvaluator extends ModelEvaluator<NaiveBayesModel> {
 
 		List<BayesInput> bayesInputs = getBayesInputs();
 		for(BayesInput bayesInput : bayesInputs){
-			FieldName name = bayesInput.getFieldName();
+			FieldName name = bayesInput.getField();
 			if(name == null){
-				throw new MissingAttributeException(bayesInput, PMMLAttributes.BAYESINPUT_FIELDNAME);
+				throw new MissingAttributeException(bayesInput, PMMLAttributes.BAYESINPUT_FIELD);
 			}
 
 			FieldValue value = context.evaluate(name);
 
 			// "Missing values are ignored"
-			if(value == null){
+			if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 				continue;
 			}
 
@@ -217,7 +218,7 @@ public class NaiveBayesModelEvaluator extends ModelEvaluator<NaiveBayesModel> {
 			if(derivedField != null){
 				value = discretize(derivedField, value);
 
-				if(value == null){
+				if(Objects.equals(FieldValues.MISSING_VALUE, value)){
 					continue;
 				}
 			}
@@ -232,13 +233,13 @@ public class NaiveBayesModelEvaluator extends ModelEvaluator<NaiveBayesModel> {
 
 		BayesOutput bayesOutput = naiveBayesModel.getBayesOutput();
 
-		FieldName targetFieldName = bayesOutput.getFieldName();
+		FieldName targetFieldName = bayesOutput.getField();
 		if(targetFieldName == null){
-			throw new MissingAttributeException(bayesOutput, PMMLAttributes.BAYESOUTPUT_FIELDNAME);
+			throw new MissingAttributeException(bayesOutput, PMMLAttributes.BAYESOUTPUT_FIELD);
 		} // End if
 
 		if(targetFieldName != null && !Objects.equals(targetField.getName(), targetFieldName)){
-			throw new InvalidAttributeException(bayesOutput, PMMLAttributes.BAYESOUTPUT_FIELDNAME, targetFieldName);
+			throw new InvalidAttributeException(bayesOutput, PMMLAttributes.BAYESOUTPUT_FIELD, targetFieldName);
 		}
 
 		calculatePriorProbabilities(probabilities, bayesOutput.getTargetValueCounts());
@@ -258,8 +259,8 @@ public class NaiveBayesModelEvaluator extends ModelEvaluator<NaiveBayesModel> {
 			Discretize discretize = (Discretize)expression;
 
 			value = DiscretizationUtil.discretize(discretize, value);
-			if(value == null){
-				return null;
+			if(Objects.equals(FieldValues.MISSING_VALUE, value)){
+				return FieldValues.MISSING_VALUE;
 			}
 
 			return FieldValueUtil.refine(derivedField, value);
@@ -373,7 +374,7 @@ public class NaiveBayesModelEvaluator extends ModelEvaluator<NaiveBayesModel> {
 
 		List<BayesInput> bayesInputs = CacheUtil.getValue(naiveBayesModel, NaiveBayesModelEvaluator.bayesInputCache);
 		for(BayesInput bayesInput : bayesInputs){
-			FieldName name = bayesInput.getFieldName();
+			FieldName name = bayesInput.getField();
 
 			Map<String, Double> counts = new LinkedHashMap<>();
 
